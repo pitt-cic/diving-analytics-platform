@@ -25,7 +25,7 @@ interface TeamOverviewProps {
 export const TeamOverview: React.FC<TeamOverviewProps> = ({ divers }) => {
   const teamStats = useMemo(() => {
     const allDives = divers.flatMap((diver) =>
-      diver.results.flatMap((result) => result.dives)
+      (diver.results ?? []).flatMap((result) => result.dives ?? [])
     );
 
     return {
@@ -40,7 +40,7 @@ export const TeamOverview: React.FC<TeamOverviewProps> = ({ divers }) => {
           : "0",
       totalCompetitions: new Set(
         divers.flatMap((diver) =>
-          diver.results.map((result) => result.meet_name)
+          (diver.results ?? []).map((result) => result.meet_name)
         )
       ).size,
     };
@@ -52,7 +52,7 @@ export const TeamOverview: React.FC<TeamOverviewProps> = ({ divers }) => {
     } = {};
 
     divers.forEach((diver) => {
-      diver.results.forEach((result) => {
+      (diver.results ?? []).forEach((result) => {
         const rawDate = result.start_date || result.date || result.end_date;
         if (rawDate) {
           const month = new Date(rawDate).toLocaleDateString("en-US", {
@@ -62,7 +62,7 @@ export const TeamOverview: React.FC<TeamOverviewProps> = ({ divers }) => {
           if (!monthlyData[month]) {
             monthlyData[month] = { total: 0, count: 0 };
           }
-          result.dives.forEach((dive) => {
+          (result.dives ?? []).forEach((dive) => {
             monthlyData[month].total += dive.award;
             monthlyData[month].count += 1;
           });
@@ -174,12 +174,13 @@ export const TeamOverview: React.FC<TeamOverviewProps> = ({ divers }) => {
         <div className="space-y-4">
           {divers.map((diver) => {
             const diverStats = {
-              totalDives: diver.results.flatMap((r) => r.dives).length,
-              avgScore: diver.results
-                .flatMap((r) => r.dives)
+              totalDives: (diver.results ?? []).flatMap((r) => r.dives ?? [])
+                .length,
+              avgScore: (diver.results ?? [])
+                .flatMap((r) => r.dives ?? [])
                 .reduce((sum, dive, _, arr) => sum + dive.award / arr.length, 0)
                 .toFixed(1),
-              competitions: diver.results.length,
+              competitions: (diver.results ?? []).length,
             };
 
             return (
