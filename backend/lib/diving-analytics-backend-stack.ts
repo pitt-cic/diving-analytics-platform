@@ -213,7 +213,10 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
             layers: [this.boto3Layer],
             timeout: cdk.Duration.seconds(30),
             environment: {
-                DIVERS_TABLE_NAME: this.diversTable.tableName
+                DIVERS_TABLE_NAME: this.diversTable.tableName,
+                COMPETITIONS_TABLE_NAME: this.competitionsTable.tableName,
+                RESULTS_TABLE_NAME: this.resultsTable.tableName,
+                DIVES_TABLE_NAME: this.divesTable.tableName
             }
         });
 
@@ -260,6 +263,9 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
         // Grant DynamoDB permissions to API Lambda functions
         this.diversTable.grantReadData(this.getAllDiversFunction);
         this.diversTable.grantReadData(this.getDiverProfileFunction);
+        this.competitionsTable.grantReadData(this.getDiverProfileFunction);
+        this.resultsTable.grantReadData(this.getDiverProfileFunction);
+        this.divesTable.grantReadData(this.getDiverProfileFunction);
         this.diversTable.grantReadData(this.getDiverTrainingFunction);
         this.resultsTable.grantReadData(this.getDiverTrainingFunction);
 
