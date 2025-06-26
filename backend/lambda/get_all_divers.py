@@ -1,6 +1,17 @@
 import json
-import boto3
+import os
+from decimal import Decimal
 from typing import Dict, Any
+
+import boto3
+
+
+def decimal_default(obj):
+    """JSON serializer for objects not serializable by default json code"""
+    if isinstance(obj, Decimal):
+        return float(obj)
+    raise TypeError
+
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
@@ -8,29 +19,37 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     GET /api/divers
     """
     try:
-        # TODO: Replace with actual database query
-        # For now, returning mock data
-        mock_divers = [
-            {
-                "id": "diver-001",
-                "name": "John Smith",
-                "gender": "M",
-                "age": 20,
-                "city_state": "Austin, TX",
-                "country": "USA",
-                "hs_grad_year": 2024
-            },
-            {
-                "id": "diver-002",
-                "name": "Sarah Johnson",
-                "gender": "F",
-                "age": 19,
-                "city_state": "Miami, FL",
-                "country": "USA",
-                "hs_grad_year": 2025
+        # Initialize DynamoDB client
+        dynamodb = boto3.resource('dynamodb')
+        table_name = os.environ['DIVERS_TABLE_NAME']
+        table = dynamodb.Table(table_name)
+
+        # Scan the table to get all divers
+        response = table.scan()
+        items = response['Items']
+
+        # Handle pagination if there are more items
+        while 'LastEvaluatedKey' in response:
+            response = table.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
+            items.extend(response['Items'])
+
+        # Transform the data to match the expected API format
+        divers = []
+        for item in items:
+            diver = {
+                "id": str(item.get('diver_id', '')),
+                "name": item.get('name', ''),
+                "gender": item.get('gender', ''),
+                "age": item.get('age'),
+                "city_state": item.get('city_state', ''),
+                "country": item.get('country', ''),
+                "hs_grad_year": item.get('hs_grad_year')
             }
-        ]
-        
+            divers.append(diver)
+
+        # Sort divers by name for consistent ordering
+        divers.sort(key=lambda x: x.get('name', ''))
+
         return {
             'statusCode': 200,
             'headers': {
@@ -39,11 +58,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 'Access-Control-Allow-Headers': 'Content-Type',
                 'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS'
             },
-            'body': json.dumps(mock_divers)
+            'body': json.dumps(divers, default=decimal_default)
         }
-        
+
     except Exception as e:
-        print(f"Error: {str(e)}")
+        print(f"Error fetching divers from DynamoDB: {str(e)}")
         return {
             'statusCode': 500,
             'headers': {
