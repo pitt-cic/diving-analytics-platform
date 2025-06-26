@@ -24,6 +24,7 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
     public readonly getDiverProfileFunction: lambda.Function;
     public readonly getDiverTrainingFunction: lambda.Function;
     public readonly getTrainingPhotoFunction: lambda.Function;
+    public readonly importCompetitionDataFunction: lambda.Function;
     public readonly boto3Layer: lambda.LayerVersion;
 
     constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -238,7 +239,21 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
                 OUTPUT_BUCKET_NAME: this.outputBucket.bucketName
             }
         });
-
+        // Import Competition Data Lambda Function
+        this.importCompetitionDataFunction = new lambda.Function(this, 'ImportCompetitionDataFunction', {
+            runtime: lambda.Runtime.PYTHON_3_13,
+            handler: 'import_competition_data.handler',
+            code: lambda.Code.fromAsset('lambda'),
+            layers: [this.boto3Layer],
+            timeout: cdk.Duration.minutes(15),
+            memorySize: 1024,
+            environment: {
+                DIVERS_TABLE_NAME: this.diversTable.tableName,
+                COMPETITIONS_TABLE_NAME: this.competitionsTable.tableName,
+                RESULTS_TABLE_NAME: this.resultsTable.tableName,
+                DIVES_TABLE_NAME: this.divesTable.tableName
+            }
+        });
         // Grant S3 read permissions to the training photo function
         this.outputBucket.grantRead(this.getTrainingPhotoFunction);
 
@@ -247,6 +262,12 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
         this.diversTable.grantReadData(this.getDiverProfileFunction);
         this.diversTable.grantReadData(this.getDiverTrainingFunction);
         this.resultsTable.grantReadData(this.getDiverTrainingFunction);
+
+        // Grant DynamoDB permissions to Import Competition Data function
+        this.diversTable.grantReadWriteData(this.importCompetitionDataFunction);
+        this.competitionsTable.grantReadWriteData(this.importCompetitionDataFunction);
+        this.resultsTable.grantReadWriteData(this.importCompetitionDataFunction);
+        this.divesTable.grantReadWriteData(this.importCompetitionDataFunction);
 
         this.inputBucket.addEventNotification(
             s3.EventType.OBJECT_CREATED,
