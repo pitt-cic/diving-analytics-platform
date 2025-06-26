@@ -12,13 +12,19 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
     public readonly outputBucket: s3.Bucket;
     public readonly dataAutomationProject: bedrock.CfnDataAutomationProject;
     public readonly invokeBdaFunction: lambda.Function;
-    public readonly usersTable: dynamodb.Table;
+
+    // DynamoDB Tables
+    public readonly diversTable: dynamodb.Table;
+    public readonly competitionsTable: dynamodb.Table;
+    public readonly resultsTable: dynamodb.Table;
+    public readonly divesTable: dynamodb.Table;
 
     // API Lambda functions
     public readonly getAllDiversFunction: lambda.Function;
     public readonly getDiverProfileFunction: lambda.Function;
     public readonly getDiverTrainingFunction: lambda.Function;
     public readonly getTrainingPhotoFunction: lambda.Function;
+    public readonly importCompetitionDataFunction: lambda.Function;
     public readonly boto3Layer: lambda.LayerVersion;
 
     constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -112,6 +118,48 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
             description: 'Boto3 1.38.41 layer',
         });
 
+        // Table 1: Divers - Store diver profile information
+        this.diversTable = new dynamodb.Table(this, 'DiversTable', {
+            tableName: 'Divers',
+            partitionKey: {name: 'diver_id', type: dynamodb.AttributeType.NUMBER},
+            billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+            removalPolicy: cdk.RemovalPolicy.RETAIN,
+        });
+
+        // Table 2: Competitions - Store competition/meet information
+        this.competitionsTable = new dynamodb.Table(this, 'CompetitionsTable', {
+            tableName: 'Competitions',
+            partitionKey: {name: 'competition_id', type: dynamodb.AttributeType.STRING},
+            billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+            removalPolicy: cdk.RemovalPolicy.RETAIN,
+        });
+
+        // Table 3: Results - Store competition results for each diver
+        this.resultsTable = new dynamodb.Table(this, 'ResultsTable', {
+            tableName: 'Results',
+            partitionKey: {name: 'diver_id', type: dynamodb.AttributeType.NUMBER},
+            sortKey: {name: 'competition_event_key', type: dynamodb.AttributeType.STRING},
+            billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+            removalPolicy: cdk.RemovalPolicy.RETAIN,
+        });
+
+        // Add GSI: CompetitionIndex to Results table
+        this.resultsTable.addGlobalSecondaryIndex({
+            indexName: 'CompetitionIndex',
+            partitionKey: {name: 'competition_id', type: dynamodb.AttributeType.STRING},
+            sortKey: {name: 'total_score', type: dynamodb.AttributeType.NUMBER},
+            projectionType: dynamodb.ProjectionType.ALL,
+        });
+
+        // Table 4: Dives - Store individual dive details
+        this.divesTable = new dynamodb.Table(this, 'DivesTable', {
+            tableName: 'Dives',
+            partitionKey: {name: 'result_key', type: dynamodb.AttributeType.STRING},
+            sortKey: {name: 'dive_round', type: dynamodb.AttributeType.STRING},
+            billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+            removalPolicy: cdk.RemovalPolicy.RETAIN,
+        });
+
         this.invokeBdaFunction = new lambda.Function(this, 'InvokeBdaFunction', {
             runtime: lambda.Runtime.PYTHON_3_13,
             handler: 'invoke_bda.handler',
@@ -122,7 +170,11 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
                 DATA_AUTOMATION_PROJECT_ARN: this.dataAutomationProject.attrProjectArn,
                 INPUT_BUCKET_NAME: this.inputBucket.bucketName,
                 OUTPUT_BUCKET_NAME: this.outputBucket.bucketName,
-                AWS_ACCOUNT_ID: cdk.Stack.of(this).account
+                AWS_ACCOUNT_ID: cdk.Stack.of(this).account,
+                DIVERS_TABLE_NAME: this.diversTable.tableName,
+                COMPETITIONS_TABLE_NAME: this.competitionsTable.tableName,
+                RESULTS_TABLE_NAME: this.resultsTable.tableName,
+                DIVES_TABLE_NAME: this.divesTable.tableName
             }
         });
 
@@ -149,6 +201,9 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
             code: lambda.Code.fromAsset('lambda'),
             layers: [this.boto3Layer],
             timeout: cdk.Duration.seconds(30),
+            environment: {
+                DIVERS_TABLE_NAME: this.diversTable.tableName
+            }
         });
 
         this.getDiverProfileFunction = new lambda.Function(this, 'GetDiverProfileFunction', {
@@ -158,7 +213,7 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
             layers: [this.boto3Layer],
             timeout: cdk.Duration.seconds(30),
             environment: {
-                USERS_TABLE_NAME: 'Users'
+                DIVERS_TABLE_NAME: this.diversTable.tableName
             }
         });
 
@@ -169,7 +224,8 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
             layers: [this.boto3Layer],
             timeout: cdk.Duration.seconds(30),
             environment: {
-                USERS_TABLE_NAME: 'Users'
+                DIVERS_TABLE_NAME: this.diversTable.tableName,
+                RESULTS_TABLE_NAME: this.resultsTable.tableName
             }
         });
 
@@ -183,14 +239,35 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
                 OUTPUT_BUCKET_NAME: this.outputBucket.bucketName
             }
         });
-
+        // Import Competition Data Lambda Function
+        this.importCompetitionDataFunction = new lambda.Function(this, 'ImportCompetitionDataFunction', {
+            runtime: lambda.Runtime.PYTHON_3_13,
+            handler: 'import_competition_data.handler',
+            code: lambda.Code.fromAsset('lambda'),
+            layers: [this.boto3Layer],
+            timeout: cdk.Duration.minutes(15),
+            memorySize: 1024,
+            environment: {
+                DIVERS_TABLE_NAME: this.diversTable.tableName,
+                COMPETITIONS_TABLE_NAME: this.competitionsTable.tableName,
+                RESULTS_TABLE_NAME: this.resultsTable.tableName,
+                DIVES_TABLE_NAME: this.divesTable.tableName
+            }
+        });
         // Grant S3 read permissions to the training photo function
         this.outputBucket.grantRead(this.getTrainingPhotoFunction);
 
         // Grant DynamoDB permissions to API Lambda functions
-        this.usersTable.grantReadData(this.getAllDiversFunction);
-        this.usersTable.grantReadData(this.getDiverProfileFunction);
-        this.usersTable.grantReadData(this.getDiverTrainingFunction);
+        this.diversTable.grantReadData(this.getAllDiversFunction);
+        this.diversTable.grantReadData(this.getDiverProfileFunction);
+        this.diversTable.grantReadData(this.getDiverTrainingFunction);
+        this.resultsTable.grantReadData(this.getDiverTrainingFunction);
+
+        // Grant DynamoDB permissions to Import Competition Data function
+        this.diversTable.grantReadWriteData(this.importCompetitionDataFunction);
+        this.competitionsTable.grantReadWriteData(this.importCompetitionDataFunction);
+        this.resultsTable.grantReadWriteData(this.importCompetitionDataFunction);
+        this.divesTable.grantReadWriteData(this.importCompetitionDataFunction);
 
         this.inputBucket.addEventNotification(
             s3.EventType.OBJECT_CREATED,
