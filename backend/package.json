@@ -1,8 +1,8 @@
 {
-  "name": "backend",
-  "version": "0.1.0",
+  "name": "diving-analytics-platform",
+  "version": "1.0.0",
   "bin": {
-    "backend": "bin/backend.js"
+    "backend": "bin/app.ts"
   },
   "scripts": {
     "build": "tsc",
