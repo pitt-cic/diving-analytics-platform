@@ -18,6 +18,7 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
     public readonly competitionsTable: dynamodb.Table;
     public readonly resultsTable: dynamodb.Table;
     public readonly divesTable: dynamodb.Table;
+    public readonly trainingDataTable: dynamodb.Table;
 
     // API Lambda functions
     public readonly getAllDiversFunction: lambda.Function;
@@ -159,7 +160,22 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
             billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
             removalPolicy: cdk.RemovalPolicy.RETAIN,
         });
+        // Table 5: Training Data - Store training session data from image analysis
+        this.trainingDataTable = new dynamodb.Table(this, 'TrainingDataTable', {
+            tableName: 'TrainingData',
+            partitionKey: {name: 'player_name', type: dynamodb.AttributeType.STRING},
+            sortKey: {name: 'training_session_id', type: dynamodb.AttributeType.STRING},
+            billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+            removalPolicy: cdk.RemovalPolicy.RETAIN,
+        });
 
+        // Add GSI: SessionDateIndex to the TrainingData table for querying by date
+        this.trainingDataTable.addGlobalSecondaryIndex({
+            indexName: 'SessionDateIndex',
+            partitionKey: {name: 'player_name', type: dynamodb.AttributeType.STRING},
+            sortKey: {name: 'session_date', type: dynamodb.AttributeType.STRING},
+            projectionType: dynamodb.ProjectionType.ALL,
+        });
         this.invokeBdaFunction = new lambda.Function(this, 'InvokeBdaFunction', {
             runtime: lambda.Runtime.PYTHON_3_13,
             handler: 'invoke_bda.handler',
@@ -174,7 +190,8 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
                 DIVERS_TABLE_NAME: this.diversTable.tableName,
                 COMPETITIONS_TABLE_NAME: this.competitionsTable.tableName,
                 RESULTS_TABLE_NAME: this.resultsTable.tableName,
-                DIVES_TABLE_NAME: this.divesTable.tableName
+                DIVES_TABLE_NAME: this.divesTable.tableName,
+                TRAINING_DATA_TABLE_NAME: this.trainingDataTable.tableName
             }
         });
 
@@ -211,7 +228,8 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
             handler: 'get_diver_profile.handler',
             code: lambda.Code.fromAsset('lambda'),
             layers: [this.boto3Layer],
-            timeout: cdk.Duration.seconds(30),
+            timeout: cdk.Duration.minutes(15),
+            memorySize: 1024,
             environment: {
                 DIVERS_TABLE_NAME: this.diversTable.tableName,
                 COMPETITIONS_TABLE_NAME: this.competitionsTable.tableName,
@@ -268,6 +286,9 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
         this.divesTable.grantReadData(this.getDiverProfileFunction);
         this.diversTable.grantReadData(this.getDiverTrainingFunction);
         this.resultsTable.grantReadData(this.getDiverTrainingFunction);
+
+        // Grant DynamoDB permissions to invoke BDA function for training data
+        this.trainingDataTable.grantWriteData(this.invokeBdaFunction);
 
         // Grant DynamoDB permissions to Import Competition Data function
         this.diversTable.grantReadWriteData(this.importCompetitionDataFunction);
