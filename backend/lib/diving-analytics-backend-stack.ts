@@ -18,7 +18,6 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
     public readonly competitionsTable: dynamodb.Table;
     public readonly resultsTable: dynamodb.Table;
     public readonly divesTable: dynamodb.Table;
-    public readonly trainingDataTable: dynamodb.Table;
 
     // API Lambda functions
     public readonly getAllDiversFunction: lambda.Function;
@@ -160,22 +159,15 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
             billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
             removalPolicy: cdk.RemovalPolicy.RETAIN,
         });
-        // Table 5: Training Data - Store training session data from image analysis
-        this.trainingDataTable = new dynamodb.Table(this, 'TrainingDataTable', {
-            tableName: 'TrainingData',
-            partitionKey: {name: 'player_name', type: dynamodb.AttributeType.STRING},
-            sortKey: {name: 'training_session_id', type: dynamodb.AttributeType.STRING},
+
+        // Table 5: LLM Results - Store LLM JSON responses
+        const trainingDataTable = new dynamodb.Table(this, 'trainingDataTable', {
+            tableName: 'trainingData',
+            partitionKey: {name: 'id', type: dynamodb.AttributeType.STRING},
             billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
             removalPolicy: cdk.RemovalPolicy.RETAIN,
         });
 
-        // Add GSI: SessionDateIndex to the TrainingData table for querying by date
-        this.trainingDataTable.addGlobalSecondaryIndex({
-            indexName: 'SessionDateIndex',
-            partitionKey: {name: 'player_name', type: dynamodb.AttributeType.STRING},
-            sortKey: {name: 'session_date', type: dynamodb.AttributeType.STRING},
-            projectionType: dynamodb.ProjectionType.ALL,
-        });
         this.invokeBdaFunction = new lambda.Function(this, 'InvokeBdaFunction', {
             runtime: lambda.Runtime.PYTHON_3_13,
             handler: 'invoke_bda.handler',
@@ -191,13 +183,16 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
                 COMPETITIONS_TABLE_NAME: this.competitionsTable.tableName,
                 RESULTS_TABLE_NAME: this.resultsTable.tableName,
                 DIVES_TABLE_NAME: this.divesTable.tableName,
-                TRAINING_DATA_TABLE_NAME: this.trainingDataTable.tableName
+                TRAINING_DATA_TABLE_NAME: trainingDataTable.tableName
             }
         });
 
         // Grant the Lambda function permissions to read from the input bucket and read/write to the output bucket
         this.inputBucket.grantRead(this.invokeBdaFunction);
         this.outputBucket.grantReadWrite(this.invokeBdaFunction);
+
+        // Grant DynamoDB permissions to invoke_bda Lambda function
+        trainingDataTable.grantReadWriteData(this.invokeBdaFunction);
 
         // Grant the Lambda function permissions to invoke Bedrock Data Automation
         this.invokeBdaFunction.addToRolePolicy(new iam.PolicyStatement({
@@ -209,6 +204,22 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
                 'bedrock:GetDataAutomationProject'
             ],
             resources: ['*']
+        }));
+
+        // Grant the Lambda function permissions to invoke Bedrock Runtime (for LLM requests)
+        // Allow access across all US regions
+        this.invokeBdaFunction.addToRolePolicy(new iam.PolicyStatement({
+            effect: iam.Effect.ALLOW,
+            actions: [
+                'bedrock:InvokeModel',
+                'bedrock:InvokeModelWithResponseStream'
+            ],
+            resources: [
+                // Foundation models - all US regions
+                'arn:aws:bedrock:us-*::foundation-model/*',
+                // Inference profiles - all US regions
+                `arn:aws:bedrock:us-*:${this.account}:inference-profile/*`
+            ]
         }));
 
         // Create API Lambda functions
@@ -286,9 +297,6 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
         this.divesTable.grantReadData(this.getDiverProfileFunction);
         this.diversTable.grantReadData(this.getDiverTrainingFunction);
         this.resultsTable.grantReadData(this.getDiverTrainingFunction);
-
-        // Grant DynamoDB permissions to invoke BDA function for training data
-        this.trainingDataTable.grantWriteData(this.invokeBdaFunction);
 
         // Grant DynamoDB permissions to Import Competition Data function
         this.diversTable.grantReadWriteData(this.importCompetitionDataFunction);
