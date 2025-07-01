@@ -135,15 +135,6 @@ def parse_diver_profile(html: str) -> Dict[str, Any]:
 
 
 def parse_diver_results(html: str) -> List[Dict[str, Any]]:
-    """
-    Parse a diver's competition results from their profile page.
-
-    Args:
-        html: Raw HTML content of the diver's profile page
-
-    Returns:
-        List of dictionaries containing competition results
-    """
     soup = BeautifulSoup(html, HTML_PARSER)
     results = []
 
@@ -210,7 +201,7 @@ def parse_diver_results(html: str) -> List[Dict[str, Any]]:
                     if score_cell:
                         link = score_cell.find('a')
                         if link and link.has_attr('href'):
-                            detail_href = link['href']  # e.g. "divesheetfinal.php?…"
+                            detail_href = link['href']
                         score_text = link.get_text() if link else score_cell.get_text()
                         score_match = re.search(r'([\d.]+)', score_text.strip())
                         if score_match:
@@ -342,30 +333,16 @@ def parse_dive_sheet(html: str) -> Dict[str, Any]:
 
 def fetch_dive_sheet(session: requests.Session, base_url: str, event: Dict[str, Any], headers: Dict[str, str]) -> Dict[
     str, Any]:
-    """
-    Fetch and parse a single dive sheet for an event.
-    
-    Args:
-        session: Requests session for connection reuse
-        base_url: Base URL for the site
-        event: Event dictionary containing detail_href
-        headers: HTTP headers to use
-    
-    Returns:
-        Updated event dictionary with dive sheet data
-    """
     if not event.get('detail_href'):
         return event
 
     try:
-        # Swap out the "resultsext" link for the "final" dive-sheet
         referer_url = base_url + event['detail_href']
         final_href = event['detail_href'].replace(
             'divesheetresultsext.php',
             'divesheetfinal.php'
         )
 
-        # Update headers with referer
         request_headers = headers.copy()
         request_headers["Referer"] = referer_url
 
@@ -373,7 +350,6 @@ def fetch_dive_sheet(session: requests.Session, base_url: str, event: Dict[str, 
         response = session.get(url, headers=request_headers, timeout=30)
         response.raise_for_status()
 
-        # Parse dive sheet and extract dates and dives
         dive_sheet_data = parse_dive_sheet(response.text)
         event['dives'] = dive_sheet_data['dives']
         event['start_date'] = dive_sheet_data['start_date']
@@ -389,26 +365,11 @@ def fetch_dive_sheet(session: requests.Session, base_url: str, event: Dict[str, 
 
 def process_diver_dive_sheets_parallel(session: requests.Session, base_url: str, results_data: List[Dict[str, Any]],
                                        headers: Dict[str, str], max_workers: int = 5) -> List[Dict[str, Any]]:
-    """
-    Process dive sheets for a single diver in parallel.
-    
-    Args:
-        session: Requests session for connection reuse
-        base_url: Base URL for the site
-        results_data: List of event results for the diver
-        headers: HTTP headers to use
-        max_workers: Maximum number of concurrent threads
-    
-    Returns:
-        Updated results data with dive sheet information
-    """
-    # Filter events that have detail_href
     events_with_sheets = [event for event in results_data if event.get('detail_href')]
 
     if not events_with_sheets:
         return results_data
 
-    # Process dive sheets in parallel
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         # Submit all dive sheet fetch tasks
         future_to_event = {
@@ -416,7 +377,6 @@ def process_diver_dive_sheets_parallel(session: requests.Session, base_url: str,
             for event in events_with_sheets
         }
 
-        # Collect results as they complete
         for future in as_completed(future_to_event):
             try:
                 updated_event = future.result()
@@ -434,17 +394,6 @@ def process_diver_dive_sheets_parallel(session: requests.Session, base_url: str,
 
 
 def process_single_diver(diver: Dict[str, Any], base_url: str, headers: Dict[str, str]) -> Dict[str, Any]:
-    """
-    Process a single diver's data including profile and competition results.
-    
-    Args:
-        diver: Dictionary containing diver information
-        base_url: Base URL for the site
-        headers: HTTP headers to use
-    
-    Returns:
-        Complete diver data dictionary
-    """
     diver_id = diver['id']
 
     # Create a session for this diver to reuse connections
@@ -588,7 +537,7 @@ def convert_to_decimal(value):
     return value
 
 
-def generate_competition_id(meet_name: str, start_date: str = None, end_date: str = None) -> str:
+def generate_competition_id(meet_name: str, start_date: str = None) -> str:
     """Generate a unique competition ID from meet name and dates"""
     # Clean the meet name for use as an ID
     clean_name = re.sub(r'[^a-zA-Z0-9\s]', '', meet_name)
@@ -690,8 +639,8 @@ def insert_result_data(dynamodb, results_table_name: str, diver_id: int, result_
             'meet_name': result_data['meet_name'],
             'event_name': result_data['event_name'],
             'round_type': result_data.get('round_type', ''),
-            'dive_count': convert_to_decimal(result_data.get('dive_count', 6)),
             'total_score': convert_to_decimal(result_data.get('total_score')),
+            'detail_href': result_data.get('detail_href'),
             'start_date': result_data.get('start_date'),
             'end_date': result_data.get('end_date'),
             'last_updated': datetime.utcnow().isoformat()
@@ -791,8 +740,7 @@ def store_data_in_dynamodb(diving_data: List[Dict[str, Any]]) -> Dict[str, int]:
                     # Generate competition ID
                     competition_id = generate_competition_id(
                         result['meet_name'],
-                        result.get('start_date'),
-                        result.get('end_date')
+                        result.get('start_date')
                     )
 
                     # Insert competition data (if not already processed)

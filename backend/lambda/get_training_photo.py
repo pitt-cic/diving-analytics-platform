@@ -1,6 +1,4 @@
 import json
-import boto3
-import base64
 from typing import Dict, Any
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:

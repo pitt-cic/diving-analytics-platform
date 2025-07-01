@@ -160,6 +160,14 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
             removalPolicy: cdk.RemovalPolicy.RETAIN,
         });
 
+        // Table 5: LLM Results - Store LLM JSON responses
+        const trainingDataTable = new dynamodb.Table(this, 'trainingDataTable', {
+            tableName: 'trainingData',
+            partitionKey: {name: 'id', type: dynamodb.AttributeType.STRING},
+            billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+            removalPolicy: cdk.RemovalPolicy.RETAIN,
+        });
+
         this.invokeBdaFunction = new lambda.Function(this, 'InvokeBdaFunction', {
             runtime: lambda.Runtime.PYTHON_3_13,
             handler: 'invoke_bda.handler',
@@ -174,13 +182,17 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
                 DIVERS_TABLE_NAME: this.diversTable.tableName,
                 COMPETITIONS_TABLE_NAME: this.competitionsTable.tableName,
                 RESULTS_TABLE_NAME: this.resultsTable.tableName,
-                DIVES_TABLE_NAME: this.divesTable.tableName
+                DIVES_TABLE_NAME: this.divesTable.tableName,
+                TRAINING_DATA_TABLE_NAME: trainingDataTable.tableName
             }
         });
 
         // Grant the Lambda function permissions to read from the input bucket and read/write to the output bucket
         this.inputBucket.grantRead(this.invokeBdaFunction);
         this.outputBucket.grantReadWrite(this.invokeBdaFunction);
+
+        // Grant DynamoDB permissions to invoke_bda Lambda function
+        trainingDataTable.grantReadWriteData(this.invokeBdaFunction);
 
         // Grant the Lambda function permissions to invoke Bedrock Data Automation
         this.invokeBdaFunction.addToRolePolicy(new iam.PolicyStatement({
@@ -192,6 +204,22 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
                 'bedrock:GetDataAutomationProject'
             ],
             resources: ['*']
+        }));
+
+        // Grant the Lambda function permissions to invoke Bedrock Runtime (for LLM requests)
+        // Allow access across all US regions
+        this.invokeBdaFunction.addToRolePolicy(new iam.PolicyStatement({
+            effect: iam.Effect.ALLOW,
+            actions: [
+                'bedrock:InvokeModel',
+                'bedrock:InvokeModelWithResponseStream'
+            ],
+            resources: [
+                // Foundation models - all US regions
+                'arn:aws:bedrock:us-*::foundation-model/*',
+                // Inference profiles - all US regions
+                `arn:aws:bedrock:us-*:${this.account}:inference-profile/*`
+            ]
         }));
 
         // Create API Lambda functions
@@ -211,7 +239,8 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
             handler: 'get_diver_profile.handler',
             code: lambda.Code.fromAsset('lambda'),
             layers: [this.boto3Layer],
-            timeout: cdk.Duration.seconds(30),
+            timeout: cdk.Duration.minutes(15),
+            memorySize: 1024,
             environment: {
                 DIVERS_TABLE_NAME: this.diversTable.tableName,
                 COMPETITIONS_TABLE_NAME: this.competitionsTable.tableName,

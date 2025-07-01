@@ -5,22 +5,17 @@ from typing import Dict, Any
 
 import boto3
 
+dynamodb = boto3.resource('dynamodb')
+
 
 def decimal_default(obj):
-    """JSON serializer for objects not serializable by default json code"""
     if isinstance(obj, Decimal):
         return float(obj)
     raise TypeError
 
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """
-    Lambda function to get all divers with basic info
-    GET /api/divers
-    """
     try:
-        # Initialize DynamoDB client
-        dynamodb = boto3.resource('dynamodb')
         table_name = os.environ['DIVERS_TABLE_NAME']
         table = dynamodb.Table(table_name)
 
@@ -28,12 +23,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         response = table.scan()
         items = response['Items']
 
-        # Handle pagination if there are more items
         while 'LastEvaluatedKey' in response:
             response = table.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
             items.extend(response['Items'])
 
-        # Transform the data to match the expected API format
         divers = []
         for item in items:
             diver = {
@@ -47,7 +40,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             }
             divers.append(diver)
 
-        # Sort divers by name for consistent ordering
         divers.sort(key=lambda x: x.get('name', ''))
 
         return {
