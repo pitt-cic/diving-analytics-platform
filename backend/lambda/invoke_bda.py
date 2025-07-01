@@ -1,13 +1,16 @@
 import json
+import logging
 import os
 import time
 import uuid
 from decimal import Decimal
 
 import boto3
-from boto3.dynamodb.conditions import Key
 
 import get_json_from_bedrock
+
+logger = logging.getLogger()
+logger.setLevel("INFO")
 
 bda_client = boto3.client(service_name="bedrock-data-automation-runtime")
 s3_client = boto3.client(service_name="s3")
@@ -32,7 +35,6 @@ def invoke_data_automation(image_input_s3_uri: str, output_s3_uri: str, data_aut
         "dataAutomationProfileArn": f"arn:aws:bedrock:{aws_region}:{aws_account_id}:data-automation-profile/us.data-automation-v1"
 
     }
-    print(f"Params: {params}")
     response = bda_client.invoke_data_automation_async(**params)
     return response
 
@@ -44,51 +46,36 @@ def wait_for_data_automation_to_complete(invocation_arn, loop_time_in_seconds=2)
         )
         status = response['status']
         if status not in ['Created', 'InProgress']:
-            print(f"BDA processing completed with status: {status}")
+            logger.info(f"BDA processing completed with status: {status}")
             return response
-        print(".", end='', flush=True)
+        logger.info(f"BDA processing status: {status}")
         time.sleep(loop_time_in_seconds)
 
 
-def decimal_default(obj):
-    if isinstance(obj, Decimal):
-        return float(obj)
-    raise TypeError
-
-
 def save_to_dynamodb(diver_name, json_output, extracted_csv):
-    """
-    Save data to DynamoDB
-    """
     try:
-        # Generate a unique identifier for the record
-        timestamp = int(time.time() * 1000)  # Milliseconds since epoch
         item_id = str(uuid.uuid4())
-        # Create item to save to DynamoDB
         item = {
             'id': item_id,
             'diver_name': diver_name,
             'json_output': json_output,
             'extracted_csv': extracted_csv,
-            'created_at': timestamp
+            'created_at': int(time.time() * 1000)
         }
 
-        # Convert JSON data to ensure it's DynamoDB compatible
-        # Replace any decimal values with strings
         item = json.loads(json.dumps(item), parse_float=Decimal)
 
-        # Save to DynamoDB
-        response = training_data_table.put_item(Item=item)
-        print(f"Saved to DynamoDB: {item_id}")
+        training_data_table.put_item(Item=item)
         return True
     except Exception as e:
-        print(f"Error saving to DynamoDB: {str(e)}")
+        logger.error(f"Error saving to DynamoDB: {str(e)}")
         import traceback
         traceback.print_exc()
         return False
 
 
 def handler(event, context):
+    logger.info(f"Received event: {event}")
     for record in event["Records"]:
         bucket = record["s3"]["bucket"]["name"]
         key = record["s3"]["object"]["key"]
@@ -101,33 +88,28 @@ def handler(event, context):
         if data_automation_status['status'] == 'Success':
             job_metadata_s3_uri = data_automation_status['outputConfiguration']['s3Uri']
 
-            # Parse S3 URI and read job metadata JSON
             bucket_name = job_metadata_s3_uri.split('/')[2]
             key_name = '/'.join(job_metadata_s3_uri.split('/')[3:])
 
             response = s3_client.get_object(Bucket=bucket_name, Key=key_name)
             job_metadata = json.loads(response['Body'].read().decode('utf-8'))
 
-            # Extract standard_output_path
             standard_output_path = job_metadata['output_metadata'][0]['segment_metadata'][0]['standard_output_path']
 
-            # Parse and read result.json
             result_bucket = standard_output_path.split('/')[2]
             result_key = '/'.join(standard_output_path.split('/')[3:])
 
             result_response = s3_client.get_object(Bucket=result_bucket, Key=result_key)
             result_data = json.loads(result_response['Body'].read().decode('utf-8'))
 
-            # Extract CSV and convert to JSON
             diver_name, csv_data = extract_csv_from_result(result_data)
             elements = extract_elements_from_result(result_data)
             bedrock_json = get_json_from_bedrock.get_json_from_bedrock(elements)
 
-            # Save to DynamoDB
             if diver_name:
                 save_to_dynamodb(diver_name, bedrock_json, csv_data)
             else:
-                print("Warning: Diver name not found, not saving to DynamoDB")
+                logger.warning("Warning: Diver name not found, not saving to DynamoDB")
 
 
 def extract_elements_from_result(result_data):
