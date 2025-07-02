@@ -57,12 +57,13 @@ def wait_for_data_automation_to_complete(invocation_arn, loop_time_in_seconds=2)
         time.sleep(loop_time_in_seconds)
 
 
-def create_initial_record(record_id, diver_name=None):
+def create_initial_record(record_id, s3_url, diver_name=None):
     try:
         item = {
             'id': record_id,
             'extraction_status': STATUS_PROCESSING,
-            'created_at': int(time.time() * 1000)
+            'created_at': int(time.time() * 1000),
+            's3_url': s3_url
         }
 
         if diver_name:
@@ -70,7 +71,7 @@ def create_initial_record(record_id, diver_name=None):
 
         item = json.loads(json.dumps(item), parse_float=Decimal)
         training_data_table.put_item(Item=item)
-        logger.info(f"Created initial record with ID: {record_id}, status: {STATUS_PROCESSING}")
+        logger.info(f"Created initial record with ID: {record_id}, status: {STATUS_PROCESSING}, s3_url: {s3_url}")
         return True
     except Exception as e:
         logger.error(f"Error creating initial record: {str(e)}")
@@ -148,10 +149,11 @@ def handler(event, context):
         bucket = record["s3"]["bucket"]["name"]
         key = record["s3"]["object"]["key"]
         image_input_s3_uri = "s3://" + bucket + "/" + key
+        image_input_s3_url = "https://" + bucket + ".s3." + os.environ["AWS_REGION"] + ".amazonaws.com/" + key
         output_s3_uri = "s3://" + os.environ.get("OUTPUT_BUCKET_NAME") + "/" + os.path.splitext(key)[0]
         data_automation_arn = os.environ.get("DATA_AUTOMATION_PROJECT_ARN")
 
-        create_initial_record(record_id)
+        create_initial_record(record_id, image_input_s3_url)
 
         try:
             # Invoke BDA

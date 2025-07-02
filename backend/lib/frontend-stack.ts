@@ -243,28 +243,30 @@ export class FrontendStack extends cdk.Stack {
             authorizationType: apigateway.AuthorizationType.COGNITO,
         });
 
-        // GET /api/divers/{diverId} - Get diver profile
         const diverResource = diversResource.addResource("{diverId}");
         diverResource.addMethod("GET", new apigateway.LambdaIntegration(props.backendStack.getDiverProfileFunction), {
             authorizer: cognitoAuthorizer,
             authorizationType: apigateway.AuthorizationType.COGNITO,
         });
 
-        // GET /api/divers/{diverId}/training - Get diver training data
         const trainingResource = diverResource.addResource("training");
         trainingResource.addMethod("GET", new apigateway.LambdaIntegration(props.backendStack.getDiverTrainingFunction), {
             authorizer: cognitoAuthorizer,
             authorizationType: apigateway.AuthorizationType.COGNITO,
         });
 
-        // GET /api/divers/{diverId}/training/{sessionDate}/photo - Get training photo
         const sessionResource = trainingResource.addResource("{sessionDate}");
         const photoResource = sessionResource.addResource("photo");
         photoResource.addMethod("GET", new apigateway.LambdaIntegration(props.backendStack.getTrainingPhotoFunction), {
             authorizer: cognitoAuthorizer,
             authorizationType: apigateway.AuthorizationType.COGNITO,
         });
-
+        const trainingDataResource = apiResource.addResource("training-data");
+        const byStatusResource = trainingDataResource.addResource("by-status");
+        byStatusResource.addMethod("POST", new apigateway.LambdaIntegration(props.backendStack.getTrainingDataByStatusFunction), {
+            authorizer: cognitoAuthorizer,
+            authorizationType: apigateway.AuthorizationType.COGNITO,
+        });
         // Create an Amplify app for hosting the frontend
         const amplifyApp = new amplify.CfnApp(this, "DivingAnalyticsApp", {
             name: "diving-analytics-frontend",
