@@ -8,14 +8,29 @@ bedrock_client = boto3.client(service_name="bedrock-runtime")
 
 def get_bedrock_prompt(elements):
     prompt = f"""You are an expert developer with 15 years of experience in data science. You are given a elements object from Bedrock Data Automation Results.
-    Elements are enclosed in `<elements>`.
-    Your task is to return a JSON object in meaningful JSON format. Do not include any other text or explanations outside of the JSON.
-    
-    <elements>
-    {elements}
-    </header_Object>
-    
-"""
+        Elements are enclosed in `<elements>`.
+        Your task is to return a JSON object. The expected JSON format is enclosed in `<json_format>` Do not include any other text or explanations outside of the JSON.
+
+        <elements>
+        {elements}
+        </elements>
+
+        <json_format>
+        {{
+          "diver_info": {{
+            "name": "Name of the diver"
+          }},
+          "dives": [
+            {{
+              "dive_skill": "dive_skill",
+              "board": "board",
+              "area_of_dive": "area_of_dive",
+              "attempts": ["X", "O", "O", "X", "X", "O", "O", "X", "X", "X", "0", "x"],
+              "success_rate": "success_rate"
+            }}
+          ]
+        }}
+        </json_format>"""
     return prompt
 
 
