@@ -25,6 +25,7 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
     public readonly getDiverTrainingFunction: lambda.Function;
     public readonly getTrainingPhotoFunction: lambda.Function;
     public readonly importCompetitionDataFunction: lambda.Function;
+    public readonly getTrainingDataByStatusFunction: lambda.Function;
     public readonly boto3Layer: lambda.LayerVersion;
 
     constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -167,7 +168,11 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
             billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
             removalPolicy: cdk.RemovalPolicy.RETAIN,
         });
-
+        // Add GSI for querying by extraction_status
+        trainingDataTable.addGlobalSecondaryIndex({
+            indexName: 'extraction-status-index',
+            partitionKey: {name: 'extraction_status', type: dynamodb.AttributeType.STRING},
+        });
         this.invokeBdaFunction = new lambda.Function(this, 'InvokeBdaFunction', {
             runtime: lambda.Runtime.PYTHON_3_13,
             handler: 'invoke_bda.handler',
@@ -286,7 +291,18 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
                 DIVES_TABLE_NAME: this.divesTable.tableName
             }
         });
-        // Grant S3 read permissions to the training photo function
+        // Get Training Data by Status Lambda Function
+        this.getTrainingDataByStatusFunction = new lambda.Function(this, 'GetTrainingDataByStatusFunction', {
+            runtime: lambda.Runtime.PYTHON_3_13,
+            handler: 'get_training_data_by_status.handler',
+            code: lambda.Code.fromAsset('lambda'),
+            layers: [this.boto3Layer],
+            timeout: cdk.Duration.seconds(30),
+            memorySize: 512,
+            environment: {
+                TRAINING_DATA_TABLE_NAME: trainingDataTable.tableName
+            }
+        });
         this.outputBucket.grantRead(this.getTrainingPhotoFunction);
 
         // Grant DynamoDB permissions to API Lambda functions
@@ -303,7 +319,8 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
         this.competitionsTable.grantReadWriteData(this.importCompetitionDataFunction);
         this.resultsTable.grantReadWriteData(this.importCompetitionDataFunction);
         this.divesTable.grantReadWriteData(this.importCompetitionDataFunction);
-
+        // Grant DynamoDB permissions to Get Training Data by Status function
+        trainingDataTable.grantReadData(this.getTrainingDataByStatusFunction);
         this.inputBucket.addEventNotification(
             s3.EventType.OBJECT_CREATED,
             new s3n.LambdaDestination(this.invokeBdaFunction)
