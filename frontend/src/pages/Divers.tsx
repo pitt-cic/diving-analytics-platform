@@ -4,6 +4,7 @@ import { SideNav } from "../components/divers/SideNav";
 import { DiverProfile } from "../components/divers/DiverProfile";
 import { useParams } from "react-router-dom";
 import { config } from "../config";
+import { Auth as Amplify } from "aws-amplify";
 
 const Divers: React.FC = () => {
   useEffect(() => {
@@ -22,19 +23,23 @@ const Divers: React.FC = () => {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`${config.apiEndpoint}/api/divers`)
-      .then((res) => {
+    const fetchDivers = async () => {
+      try {
+        const session = await Amplify.currentSession();
+        const token = session.getIdToken().getJwtToken();
+        const res = await fetch(`${config.apiEndpoint}/api/divers`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         if (!res.ok) throw new Error("Failed to fetch divers");
-        return res.json();
-      })
-      .then((data) => {
-        setDivers(data); // Adjust if the API response is wrapped in a property
+        const data = await res.json();
+        setDivers(data);
         setLoading(false);
-      })
-      .catch((err) => {
+      } catch (err) {
         setError("Failed to load divers");
         setLoading(false);
-      });
+      }
+    };
+    fetchDivers();
   }, []);
 
   const { diverId } = useParams<{ diverId?: string }>();
@@ -126,23 +131,30 @@ const Divers: React.FC = () => {
     if (!selectedDiver) return;
     setProfileLoading(true);
     setProfileError(null);
-    fetch(`${config.apiEndpoint}/api/divers/${selectedDiver.id}`)
-      .then((res) => {
+    const fetchProfile = async () => {
+      try {
+        const session = await Amplify.currentSession();
+        const token = session.getIdToken().getJwtToken();
+        const res = await fetch(
+          `${config.apiEndpoint}/api/divers/${selectedDiver.id}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
         if (!res.ok) throw new Error("Failed to fetch diver profile");
-        return res.json();
-      })
-      .then((data) => {
+        const data = await res.json();
         // Add mock training data if missing
         if (!data.training) {
           data.training = generateMockTrainingData();
         }
         setSelectedDiverProfile(data);
         setProfileLoading(false);
-      })
-      .catch((err) => {
+      } catch (err) {
         setProfileError("Failed to load diver profile");
         setProfileLoading(false);
-      });
+      }
+    };
+    fetchProfile();
   }, [selectedDiver]);
 
   if (loading) {

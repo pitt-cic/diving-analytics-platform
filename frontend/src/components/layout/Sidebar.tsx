@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   HomeIcon,
   ClipboardDocumentListIcon,
@@ -8,8 +8,10 @@ import {
   Cog6ToothIcon,
   Bars3Icon,
   XMarkIcon,
+  ArrowLeftOnRectangleIcon,
 } from "@heroicons/react/24/outline";
 import { NavItem } from "../../types";
+import { Auth as Amplify } from "aws-amplify";
 
 const navigation: NavItem[] = [
   { name: "Dashboard", to: "/", icon: HomeIcon },
@@ -22,8 +24,14 @@ const navigation: NavItem[] = [
 const Sidebar: React.FC = () => {
   const location = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const navigate = useNavigate();
 
   const closeDrawer = () => setIsMobileOpen(false);
+
+  const handleLogout = async () => {
+    await Amplify.signOut();
+    navigate("/login");
+  };
 
   const NavLinks = ({ onClick }: { onClick?: () => void }) => (
     <nav className="mt-8 flex-1 px-2 space-y-1">
@@ -58,6 +66,17 @@ const Sidebar: React.FC = () => {
           </Link>
         );
       })}
+      <button
+        onClick={handleLogout}
+        className={`group flex items-center w-full px-2 py-2 text-sm font-medium rounded-md text-primary-100 hover:bg-primary-700 hover:text-white mt-1`}
+        style={{ outline: "none", border: "none", background: "none" }}
+      >
+        <ArrowLeftOnRectangleIcon
+          className="mr-3 flex-shrink-0 h-6 w-6 text-primary-300 group-hover:text-primary-200"
+          aria-hidden="true"
+        />
+        Logout
+      </button>
     </nav>
   );
 
@@ -104,12 +123,14 @@ const Sidebar: React.FC = () => {
 
       {/* Desktop*/}
       <div className="hidden md:flex md:flex-shrink-0">
-        <div className="flex flex-col w-64">
+        <div className="flex flex-col w-64 h-screen">
           <div className="flex flex-col h-0 flex-1 bg-[#003594]">
             <div className="flex items-center flex-shrink-0 px-4 py-5">
               <span className="text-white text-2xl font-bold">DiveTracker</span>
             </div>
-            <NavLinks />
+            <div className="flex-1 flex flex-col justify-between">
+              <NavLinks />
+            </div>
           </div>
         </div>
       </div>

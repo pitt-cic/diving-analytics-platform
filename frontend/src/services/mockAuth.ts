@@ -1,18 +1,18 @@
 // Mock authentication service for development without a real backend
 
-import { config } from '../config';
+import { config } from "../config";
 
 // Mock user data
 const MOCK_USER = {
-  username: 'demo@example.com',
-  email: 'demo@example.com',
-  given_name: 'Demo',
-  family_name: 'User',
+  username: "demo@example.com",
+  email: "demo@example.com",
+  given_name: "Demo",
+  family_name: "User",
 };
 
 // Local storage keys
-const TOKEN_KEY = 'diveGenie_auth_token';
-const USER_KEY = 'diveGenie_user';
+const TOKEN_KEY = "diveGenie_auth_token";
+const USER_KEY = "diveGenie_user";
 
 /**
  * Check if we should use mock authentication
@@ -24,10 +24,13 @@ export const shouldUseMockAuth = (): boolean => {
 /**
  * Sign in with mock credentials
  */
-export const mockSignIn = async (username: string, password: string): Promise<any> => {
+export const mockSignIn = async (
+  username: string,
+  password: string
+): Promise<any> => {
   // For mock auth, we accept any non-empty credentials
   if (!username || !password) {
-    throw new Error('Username and password are required');
+    throw new Error("Username and password are required");
   }
 
   // Create a mock token
@@ -53,18 +56,18 @@ export const mockSignIn = async (username: string, password: string): Promise<an
  */
 export const mockSignUp = async (params: any): Promise<any> => {
   const { username, password, attributes } = params;
-  
+
   if (!username || !password) {
-    throw new Error('Username and password are required');
+    throw new Error("Username and password are required");
   }
 
   if (!attributes.email || !attributes.given_name || !attributes.family_name) {
-    throw new Error('Email, first name, and last name are required');
+    throw new Error("Email, first name, and last name are required");
   }
 
   // Simply log the sign-up and return success
-  console.log('Mock sign up successful', { username, attributes });
-  
+  console.log("Mock sign up successful", { username, attributes });
+
   return {
     user: {
       username,
@@ -77,7 +80,10 @@ export const mockSignUp = async (params: any): Promise<any> => {
 /**
  * Confirm sign up (in mock mode, this is automatic)
  */
-export const mockConfirmSignUp = async (username: string, code: string): Promise<any> => {
+export const mockConfirmSignUp = async (
+  username: string,
+  code: string
+): Promise<any> => {
   return { username };
 };
 
@@ -87,7 +93,7 @@ export const mockConfirmSignUp = async (username: string, code: string): Promise
 export const mockCurrentAuthenticatedUser = async (): Promise<any> => {
   const userStr = localStorage.getItem(USER_KEY);
   if (!userStr) {
-    throw new Error('No authenticated user');
+    throw new Error("No authenticated user");
   }
 
   return JSON.parse(userStr);
