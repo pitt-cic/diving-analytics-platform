@@ -26,6 +26,7 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
     public readonly getTrainingPhotoFunction: lambda.Function;
     public readonly importCompetitionDataFunction: lambda.Function;
     public readonly getTrainingDataByStatusFunction: lambda.Function;
+    public readonly updateTrainingDataFunction: lambda.Function;
     public readonly boto3Layer: lambda.LayerVersion;
 
     constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -198,6 +199,7 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
 
         // Grant DynamoDB permissions to invoke_bda Lambda function
         trainingDataTable.grantReadWriteData(this.invokeBdaFunction);
+        this.diversTable.grantReadData(this.invokeBdaFunction);
 
         // Grant the Lambda function permissions to invoke Bedrock Data Automation
         this.invokeBdaFunction.addToRolePolicy(new iam.PolicyStatement({
@@ -303,9 +305,20 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
                 TRAINING_DATA_TABLE_NAME: trainingDataTable.tableName
             }
         });
+
+        this.updateTrainingDataFunction = new lambda.Function(this, 'UpdateTrainingDataFunction', {
+            runtime: lambda.Runtime.PYTHON_3_13,
+            handler: 'update_training_data.handler',
+            code: lambda.Code.fromAsset('lambda'),
+            layers: [this.boto3Layer],
+            timeout: cdk.Duration.seconds(30),
+            memorySize: 512,
+            environment: {
+                TRAINING_DATA_TABLE_NAME: trainingDataTable.tableName
+            }
+        });
         this.outputBucket.grantRead(this.getTrainingPhotoFunction);
 
-        // Grant DynamoDB permissions to API Lambda functions
         this.diversTable.grantReadData(this.getAllDiversFunction);
         this.diversTable.grantReadData(this.getDiverProfileFunction);
         this.competitionsTable.grantReadData(this.getDiverProfileFunction);
@@ -314,13 +327,12 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
         this.diversTable.grantReadData(this.getDiverTrainingFunction);
         this.resultsTable.grantReadData(this.getDiverTrainingFunction);
 
-        // Grant DynamoDB permissions to Import Competition Data function
         this.diversTable.grantReadWriteData(this.importCompetitionDataFunction);
         this.competitionsTable.grantReadWriteData(this.importCompetitionDataFunction);
         this.resultsTable.grantReadWriteData(this.importCompetitionDataFunction);
         this.divesTable.grantReadWriteData(this.importCompetitionDataFunction);
-        // Grant DynamoDB permissions to Get Training Data by Status function
         trainingDataTable.grantReadData(this.getTrainingDataByStatusFunction);
+        trainingDataTable.grantReadWriteData(this.updateTrainingDataFunction);
         this.inputBucket.addEventNotification(
             s3.EventType.OBJECT_CREATED,
             new s3n.LambdaDestination(this.invokeBdaFunction)
