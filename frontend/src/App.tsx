@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -25,21 +25,19 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
     null
   );
 
-  useEffect(() => {
+  React.useEffect(() => {
+    const checkAuthState = async () => {
+      try {
+        await Amplify.currentAuthenticatedUser();
+        setIsAuthenticated(true);
+      } catch (err) {
+        setIsAuthenticated(false);
+      }
+    };
     checkAuthState();
   }, []);
 
-  const checkAuthState = async () => {
-    try {
-      await Amplify.currentAuthenticatedUser();
-      setIsAuthenticated(true);
-    } catch (err) {
-      setIsAuthenticated(true);
-    }
-  };
-
   if (isAuthenticated === null) {
-    // Still checking auth state
     return (
       <div className="flex h-screen items-center justify-center">
         Loading...

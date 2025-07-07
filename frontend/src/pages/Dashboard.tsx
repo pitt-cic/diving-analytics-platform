@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Diver } from "../types";
 import { TeamOverview } from "../components/divers/TeamOverview";
 import { config } from "../config";
+import { Auth as Amplify } from "aws-amplify";
 
 // If divingData is used, replace with an empty array or placeholder for now
 // const [divers, setDivers] = useState<Diver[]>([]);
@@ -14,49 +15,49 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     setLoading(true);
-    // First fetch the basic diver list
-    fetch(`${config.apiEndpoint}/api/divers`)
-      .then((res) => {
+    const fetchDivers = async () => {
+      try {
+        const session = await Amplify.currentSession();
+        const token = session.getIdToken().getJwtToken();
+        // First fetch the basic diver list
+        const res = await fetch(`${config.apiEndpoint}/api/divers`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         if (!res.ok) throw new Error("Failed to fetch divers");
-        return res.json();
-      })
-      .then((basicDivers) => {
+        const basicDivers = await res.json();
         // Then fetch detailed profiles for each diver
-        const detailedDiversPromises = basicDivers.map((diver: Diver) =>
-          fetch(`${config.apiEndpoint}/api/divers/${diver.id}`)
-            .then((res) => {
-              if (!res.ok) throw new Error(`Failed to fetch diver ${diver.id}`);
-              return res.json();
-            })
-            .catch((err) => {
-              console.warn(
-                `Failed to fetch detailed profile for diver ${diver.id}:`,
-                err
-              );
-              // Return basic diver data if detailed fetch fails
-              return diver;
-            })
-        );
-
-        Promise.all(detailedDiversPromises)
-          .then((detailedDivers) => {
-            // Filter out divers with missing or empty results
-            const validDivers = detailedDivers.filter(
-              (diver) =>
-                Array.isArray(diver.results) && diver.results.length > 0
+        const detailedDiversPromises = basicDivers.map(async (diver: Diver) => {
+          try {
+            const res = await fetch(
+              `${config.apiEndpoint}/api/divers/${diver.id}`,
+              {
+                headers: { Authorization: `Bearer ${token}` },
+              }
             );
-            setDivers(validDivers);
-            setLoading(false);
-          })
-          .catch((err) => {
-            setError("Failed to load detailed diver data");
-            setLoading(false);
-          });
-      })
-      .catch((err) => {
+            if (!res.ok) throw new Error(`Failed to fetch diver ${diver.id}`);
+            return await res.json();
+          } catch (err) {
+            console.warn(
+              `Failed to fetch detailed profile for diver ${diver.id}:`,
+              err
+            );
+            // Return basic diver data if detailed fetch fails
+            return diver;
+          }
+        });
+        const detailedDivers = await Promise.all(detailedDiversPromises);
+        // Filter out divers with missing or empty results
+        const validDivers = detailedDivers.filter(
+          (diver) => Array.isArray(diver.results) && diver.results.length > 0
+        );
+        setDivers(validDivers);
+        setLoading(false);
+      } catch (err) {
         setError("Failed to load divers");
         setLoading(false);
-      });
+      }
+    };
+    fetchDivers();
   }, []);
 
   if (loading) {
