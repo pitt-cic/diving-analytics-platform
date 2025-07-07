@@ -1,5 +1,5 @@
-import { Amplify } from 'aws-amplify';
-import { config } from './config';
+import { Amplify } from "aws-amplify";
+import { config } from "./config";
 
 // Configure Amplify with the values from config
 export const configureAmplify = () => {
@@ -13,13 +13,13 @@ export const configureAmplify = () => {
     API: {
       endpoints: [
         {
-          name: 'api',
+          name: "api",
           endpoint: config.apiEndpoint,
           custom_header: async () => {
             try {
               const session = await Amplify.Auth.currentSession();
-              return { 
-                Authorization: `Bearer ${session.getIdToken().getJwtToken()}` 
+              return {
+                Authorization: `Bearer ${session.getIdToken().getJwtToken()}`,
               };
             } catch (e) {
               return {};
@@ -36,7 +36,7 @@ export const configureAmplify = () => {
         } catch (e) {
           // If not authenticated, use API key for public access
           return {
-            'x-api-key': config.aws.graphqlApiKey,
+            "x-api-key": config.aws.graphqlApiKey,
           };
         }
       },
@@ -46,6 +46,7 @@ export const configureAmplify = () => {
       AWSS3: {
         bucket: config.aws.mediaBucket,
         region: config.aws.region,
+        level: "private",
       },
     },
   };
@@ -57,11 +58,11 @@ export const configureAmplify = () => {
 
   // Initialize Amplify with the configuration
   Amplify.configure(amplifyConfig);
-  
-  console.log('Amplify configured with region:', config.aws.region);
-  
+
+  console.log("Amplify configured with region:", config.aws.region);
+
   // If using mock data, log a notice
   if (config.features.useMockData) {
-    console.log('Using mock data - no actual AWS calls will be made');
+    console.log("Using mock data - no actual AWS calls will be made");
   }
 };

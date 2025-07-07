@@ -6,7 +6,9 @@ import {
   X,
   FileImage,
   AlertTriangle,
+  Cloud,
 } from "lucide-react";
+import { s3UploadService } from "../services/s3Upload";
 
 // Types
 interface DiveEntry {
@@ -29,6 +31,10 @@ interface ImageData {
   url: string;
   extractedData: DiveData;
   isEditing: boolean;
+  s3Key?: string;
+  s3Url?: string;
+  uploadStatus?: "pending" | "uploading" | "success" | "error";
+  uploadError?: string;
 }
 
 interface ConfirmedLog {
@@ -38,6 +44,8 @@ interface ConfirmedLog {
   totalDives: number;
   balks: number;
   fileName: string;
+  s3Key?: string;
+  s3Url?: string;
 }
 
 // Mock data generator
@@ -124,7 +132,9 @@ const DiveLog: React.FC = () => {
     setReviewImages((prev) => [...prev, image]);
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const files = Array.from(event.target.files || []);
     const newImages: ImageData[] = files.map((file, index) => ({
       id: `${Date.now()}-${index}`,
@@ -132,12 +142,74 @@ const DiveLog: React.FC = () => {
       url: URL.createObjectURL(file),
       extractedData: generateMockData(),
       isEditing: false,
+      uploadStatus: "pending" as const,
     }));
-    // Add to pending, then move to review after 3s
+
+    // Add to pending immediately
     setPendingImages((prev) => [...prev, ...newImages]);
-    newImages.forEach((img) => {
-      setTimeout(() => moveToReview(img), 3000);
-    });
+
+    // Upload each file to S3
+    for (let i = 0; i < newImages.length; i++) {
+      const image = newImages[i];
+
+      // Update status to uploading
+      setPendingImages((prev) =>
+        prev.map((img) =>
+          img.id === image.id ? { ...img, uploadStatus: "uploading" } : img
+        )
+      );
+
+      try {
+        const uploadResult = await s3UploadService.uploadFile(image.file);
+
+        if (uploadResult.success) {
+          // Update with S3 information
+          setPendingImages((prev) =>
+            prev.map((img) =>
+              img.id === image.id
+                ? {
+                    ...img,
+                    s3Key: uploadResult.key,
+                    s3Url: uploadResult.url,
+                    uploadStatus: "success",
+                  }
+                : img
+            )
+          );
+        } else {
+          // Update with error
+          setPendingImages((prev) =>
+            prev.map((img) =>
+              img.id === image.id
+                ? {
+                    ...img,
+                    uploadStatus: "error",
+                    uploadError: uploadResult.error,
+                  }
+                : img
+            )
+          );
+        }
+      } catch (error) {
+        // Update with error
+        setPendingImages((prev) =>
+          prev.map((img) =>
+            img.id === image.id
+              ? {
+                  ...img,
+                  uploadStatus: "error",
+                  uploadError:
+                    error instanceof Error ? error.message : "Upload failed",
+                }
+              : img
+          )
+        );
+      }
+
+      // Move to review after 3s (regardless of upload status)
+      setTimeout(() => moveToReview(image), 3000);
+    }
+
     // If nothing in review, set index to 0
     if (reviewImages.length === 0 && newImages.length > 0)
       setCurrentImageIndex(0);
@@ -200,6 +272,8 @@ const DiveLog: React.FC = () => {
       totalDives: currentImage.extractedData.Dives.length,
       balks: currentImage.extractedData.Balks,
       fileName: currentImage.file.name,
+      s3Key: currentImage.s3Key,
+      s3Url: currentImage.s3Url,
     };
     setConfirmedLogs((prev) => [newLog, ...prev]);
     // Remove from reviewImages
@@ -273,16 +347,38 @@ const DiveLog: React.FC = () => {
               {pendingImages.map((img) => (
                 <div
                   key={img.id}
-                  className="w-32 h-32 bg-gray-100 rounded-lg flex items-center justify-center border-2 border-blue-200 animate-pulse relative"
+                  className="w-32 h-32 bg-gray-100 rounded-lg flex items-center justify-center border-2 border-blue-200 relative"
                 >
                   <img
                     src={img.url}
                     alt="pending"
                     className="w-28 h-28 object-contain opacity-60"
                   />
-                  <span className="absolute text-blue-400 text-xs font-semibold left-2 bottom-2">
-                    Loading...
-                  </span>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    {img.uploadStatus === "pending" && (
+                      <div className="text-blue-400 text-xs font-semibold animate-pulse">
+                        Queued...
+                      </div>
+                    )}
+                    {img.uploadStatus === "uploading" && (
+                      <div className="text-blue-600 text-xs font-semibold animate-pulse">
+                        <Cloud className="h-4 w-4 mx-auto mb-1" />
+                        Uploading...
+                      </div>
+                    )}
+                    {img.uploadStatus === "success" && (
+                      <div className="text-green-600 text-xs font-semibold">
+                        <Check className="h-4 w-4 mx-auto mb-1" />
+                        Uploaded
+                      </div>
+                    )}
+                    {img.uploadStatus === "error" && (
+                      <div className="text-red-600 text-xs font-semibold">
+                        <AlertTriangle className="h-4 w-4 mx-auto mb-1" />
+                        Failed
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -337,7 +433,12 @@ const DiveLog: React.FC = () => {
                     <h3 className="font-semibold text-base text-blue-900">
                       {log.diverName}
                     </h3>
-                    <FileImage className="h-4 w-4 text-gray-400" />
+                    <div className="flex items-center gap-1">
+                      {log.s3Key && (
+                        <Cloud className="h-4 w-4 text-green-500" />
+                      )}
+                      <FileImage className="h-4 w-4 text-gray-400" />
+                    </div>
                   </div>
                   <div className="space-y-0.5 text-xs text-gray-600">
                     <div>Date: {log.date}</div>
@@ -346,6 +447,11 @@ const DiveLog: React.FC = () => {
                     <div className="truncate" title={log.fileName}>
                       File: {log.fileName}
                     </div>
+                    {log.s3Key && (
+                      <div className="text-green-600 font-medium">
+                        ✓ Stored in S3
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
