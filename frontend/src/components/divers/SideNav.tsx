@@ -53,11 +53,11 @@ export const SideNav: React.FC<SideNavProps> = ({
 
   return (
     <div
-      className={`hidden md:flex md:flex-shrink-0 bg-white rounded-lg shadow-sm border border-gray-200 transition-all duration-300 ${
+      className={`hidden mb-4 md:flex md:flex-shrink-0 bg-white rounded-lg shadow-sm border border-gray-200 transition-all duration-300 ${
         isOpen ? "w-64" : "w-16"
       } flex-shrink-0 flex flex-col`}
     >
-      <div className="p-4">
+      <div className="px-4 pt-2">
         <button
           onClick={onToggle}
           className="w-full flex items-center justify-center p-2 rounded-lg hover:bg-gray-100"
