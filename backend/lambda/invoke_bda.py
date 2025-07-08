@@ -4,6 +4,7 @@ import os
 import time
 import uuid
 from decimal import Decimal
+from typing import Any
 
 import boto3
 
@@ -17,6 +18,7 @@ s3_client = boto3.client(service_name="s3")
 dynamodb = boto3.resource('dynamodb')
 
 training_data_table = dynamodb.Table(os.environ.get('TRAINING_DATA_TABLE_NAME'))
+divers_table = dynamodb.Table(os.environ.get('DIVERS_TABLE_NAME'))
 
 # Status constants
 STATUS_PROCESSING = "PROCESSING"
@@ -80,6 +82,36 @@ def create_initial_record(record_id, s3_url, diver_name=None):
         return False
 
 
+def get_diver_id_by_name(diver_name) -> Any | None:
+    if not diver_name:
+        return None
+
+    try:
+        response = divers_table.scan()
+        items = response['Items']
+
+        while 'LastEvaluatedKey' in response:
+            response = divers_table.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
+            items.extend(response['Items'])
+
+        diver_name_lower = diver_name.lower().strip()
+        for item in items:
+            stored_name = item.get('name', '').lower().strip()
+            if diver_name_lower in stored_name or stored_name in diver_name_lower:
+                diver_id = item.get('diver_id')
+                logger.info(f"Found diver ID {diver_id} for name '{diver_name}' (matched with '{item.get('name')}')")
+                return diver_id
+
+        logger.warning(f"No diver found for name: '{diver_name}'")
+        return None
+
+    except Exception as e:
+        logger.error(f"Error looking up diver by name '{diver_name}': {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
 def update_record_with_results(record_id, diver_name, json_output, extracted_csv):
     try:
         update_expression = "SET extraction_status = :status, json_output = :json_output, extracted_csv = :csv, updated_at = :updated_at"
@@ -94,6 +126,12 @@ def update_record_with_results(record_id, diver_name, json_output, extracted_csv
         if diver_name:
             update_expression += ", diver_name = :diver_name"
             expression_attribute_values[':diver_name'] = diver_name
+
+        diver_id = get_diver_id_by_name(diver_name)
+
+        if diver_id:
+            update_expression += ", diver_id = :diver_id"
+            expression_attribute_values[':diver_id'] = str(diver_id)
 
         # Convert to handle Decimal types
         expression_attribute_values = json.loads(json.dumps(expression_attribute_values), parse_float=Decimal)

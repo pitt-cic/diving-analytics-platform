@@ -88,12 +88,10 @@ export class FrontendStack extends cdk.Stack {
                     cognito.OAuthScope.PROFILE,
                 ],
                 callbackUrls: [
-                    "http://localhost:3000", // For local development
-                    // Will add Amplify URL after it's created
+                    "http://localhost:3000",
                 ],
                 logoutUrls: [
-                    "http://localhost:3000", // For local development
-                    // Will add Amplify URL after it's created
+                    "http://localhost:3000",
                 ],
             },
             // Token validity
@@ -102,7 +100,6 @@ export class FrontendStack extends cdk.Stack {
             refreshTokenValidity: cdk.Duration.days(30),
         });
 
-        // Create Identity Pool for AWS resource access
         const identityPool = new cognito.CfnIdentityPool(this, "DivingAnalyticsIdentityPool", {
             identityPoolName: "diving-analytics-identity-pool",
             allowUnauthenticatedIdentities: false,
@@ -114,7 +111,6 @@ export class FrontendStack extends cdk.Stack {
             ],
         });
 
-        // Create Admin User Group
         const adminGroup = new cognito.CfnUserPoolGroup(this, "DivingAnalyticsAdminGroup", {
             userPoolId: userPool.userPoolId,
             groupName: "DivingAnalyticsAdminGroup",
@@ -122,10 +118,8 @@ export class FrontendStack extends cdk.Stack {
             precedence: 1,
         });
 
-        // Assign to public property
         this.adminGroup = adminGroup;
 
-        // Create an IAM role for Admin Group with S3 and API Gateway permissions
         const adminRole = new iam.Role(this, "DivingAnalyticsAdminRole", {
             roleName: "DivingAnalyticsAdminRole",
             assumedBy: new iam.FederatedPrincipal(
@@ -143,16 +137,13 @@ export class FrontendStack extends cdk.Stack {
             description: "IAM role for Diving Analytics Admin Group users",
         });
 
-        // Assign to public property
         this.adminRole = adminRole;
 
-        // Create Cognito Authorizer for API Gateway
         const cognitoAuthorizer = new apigateway.CognitoUserPoolsAuthorizer(this, "CognitoAuthorizer", {
             cognitoUserPools: [userPool],
             authorizerName: "DivingAnalyticsCognitoAuthorizer",
         });
 
-        // Create API Gateway
         this.api = new apigateway.RestApi(this, "DivingAnalyticsApi", {
             restApiName: "Diving Analytics API",
             description: "API for diving analytics platform",
@@ -169,7 +160,6 @@ export class FrontendStack extends cdk.Stack {
             }
         });
 
-        // Add S3 permissions for the input bucket
         adminRole.addToPolicy(new iam.PolicyStatement({
             effect: iam.Effect.ALLOW,
             actions: [
@@ -185,7 +175,6 @@ export class FrontendStack extends cdk.Stack {
             ],
         }));
 
-        // Add API Gateway permissions
         adminRole.addToPolicy(new iam.PolicyStatement({
             effect: iam.Effect.ALLOW,
             actions: [
@@ -196,7 +185,6 @@ export class FrontendStack extends cdk.Stack {
             ],
         }));
 
-        // Create a default authenticated role for regular users
         const authenticatedRole = new iam.Role(this, "DivingAnalyticsAuthenticatedRole", {
             roleName: "DivingAnalyticsAuthenticatedRole",
             assumedBy: new iam.FederatedPrincipal(
@@ -214,7 +202,6 @@ export class FrontendStack extends cdk.Stack {
             description: "IAM role for authenticated Diving Analytics users",
         });
 
-        // Add basic API Gateway permissions for authenticated users
         authenticatedRole.addToPolicy(new iam.PolicyStatement({
             effect: iam.Effect.ALLOW,
             actions: [
@@ -225,7 +212,6 @@ export class FrontendStack extends cdk.Stack {
             ],
         }));
 
-        // Attach roles to Identity Pool (simplified without role mappings for now)
         new cognito.CfnIdentityPoolRoleAttachment(this, "IdentityPoolRoleAttachment", {
             identityPoolId: identityPool.ref,
             roles: {
@@ -233,11 +219,9 @@ export class FrontendStack extends cdk.Stack {
             },
         });
 
-        // Create API resources and methods using backend Lambda functions
         const apiResource = this.api.root.addResource("api");
         const diversResource = apiResource.addResource("divers");
 
-        // GET /api/divers - Get all divers
         diversResource.addMethod("GET", new apigateway.LambdaIntegration(props.backendStack.getAllDiversFunction), {
             authorizer: cognitoAuthorizer,
             authorizationType: apigateway.AuthorizationType.COGNITO,
@@ -262,12 +246,20 @@ export class FrontendStack extends cdk.Stack {
             authorizationType: apigateway.AuthorizationType.COGNITO,
         });
         const trainingDataResource = apiResource.addResource("training-data");
-        const byStatusResource = trainingDataResource.addResource("by-status");
-        byStatusResource.addMethod("POST", new apigateway.LambdaIntegration(props.backendStack.getTrainingDataByStatusFunction), {
+        trainingDataResource.addMethod("GET", new apigateway.LambdaIntegration(props.backendStack.getTrainingDataByStatusFunction), {
+            authorizer: cognitoAuthorizer,
+            authorizationType: apigateway.AuthorizationType.COGNITO,
+            requestParameters: {
+                'method.request.querystring.status': true
+            }
+        });
+
+        // Add PUT endpoint for updating training data
+        trainingDataResource.addMethod("PUT", new apigateway.LambdaIntegration(props.backendStack.updateTrainingDataFunction), {
             authorizer: cognitoAuthorizer,
             authorizationType: apigateway.AuthorizationType.COGNITO,
         });
-        // Create an Amplify app for hosting the frontend
+
         const amplifyApp = new amplify.CfnApp(this, "DivingAnalyticsApp", {
             name: "diving-analytics-frontend",
             platform: "WEB",
@@ -322,6 +314,10 @@ export class FrontendStack extends cdk.Stack {
                 {
                     name: "REACT_APP_AWS_REGION",
                     value: this.region,
+                },
+                {
+                    name: "REACT_APP_INPUT_BUCKET_NAME",
+                    value: props.backendStack.inputBucket.bucketName,
                 },],
         });
 
@@ -333,13 +329,11 @@ export class FrontendStack extends cdk.Stack {
             stage: "PRODUCTION",
         });
 
-        // Output the API Gateway URL
         new cdk.CfnOutput(this, "ApiGatewayUrl", {
             value: this.api.url,
             description: "URL of the API Gateway",
         });
 
-        // Output the Amplify app URL
         new cdk.CfnOutput(this, "AmplifyAppURL", {
             value: `https://${mainBranch.attrBranchName}.${amplifyApp.attrAppId}.amplifyapp.com`,
             description: "URL of the Amplify App",

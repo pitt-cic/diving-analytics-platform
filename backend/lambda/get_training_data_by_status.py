@@ -18,41 +18,29 @@ def decimal_default(obj):
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     try:
-        if 'body' not in event:
+        # Extract status from query parameters
+        query_params = event.get('queryStringParameters')
+
+        if not query_params or 'status' not in query_params:
             return {
                 'statusCode': 400,
                 'headers': {
                     'Content-Type': APPLICATION_JSON,
                     'Access-Control-Allow-Origin': '*'
                 },
-                'body': json.dumps({'error': 'Request body is required'})
+                'body': json.dumps({'error': 'status query parameter is required'})
             }
 
-        if isinstance(event['body'], str):
-            try:
-                body = json.loads(event['body'])
-            except json.JSONDecodeError:
-                return {
-                    'statusCode': 400,
-                    'headers': {
-                        'Content-Type': APPLICATION_JSON,
-                        'Access-Control-Allow-Origin': '*'
-                    },
-                    'body': json.dumps({'error': 'Invalid JSON in request body'})
-                }
-        else:
-            body = event['body']
+        extraction_status = query_params['status']
 
-        status = body.get('extraction_status')
-
-        if not status:
+        if not extraction_status:
             return {
                 'statusCode': 400,
                 'headers': {
                     'Content-Type': APPLICATION_JSON,
                     'Access-Control-Allow-Origin': '*'
                 },
-                'body': json.dumps({'error': 'extraction_status parameter is required in request body'})
+                'body': json.dumps({'error': 'status parameter cannot be empty'})
             }
 
         # Get table name from environment variable
@@ -64,10 +52,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             IndexName='extraction-status-index',
             KeyConditionExpression='#extraction_status = :extraction_status',
             ExpressionAttributeNames={
-                '#status': 'status'
+                '#extraction_status': 'extraction_status'
             },
             ExpressionAttributeValues={
-                ':extraction_status': status
+                ':extraction_status': extraction_status
             }
         )
 
@@ -81,7 +69,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     '#extraction_status': 'extraction_status'
                 },
                 ExpressionAttributeValues={
-                    ':extraction_status': status
+                    ':extraction_status': extraction_status
                 },
                 ExclusiveStartKey=response['LastEvaluatedKey']
             )
@@ -91,7 +79,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         result = {
             'data': items,
             'count': len(items),
-            'extraction_status': status
+            'extraction_status': extraction_status
         }
 
         return {

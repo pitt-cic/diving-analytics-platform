@@ -16,19 +16,16 @@ def get_bedrock_prompt(elements):
         </elements>
 
         <json_format>
-        {{
-          "diver_info": {{
-            "name": "Name of the diver"
-          }},
-          "dives": [
-            {{
-              "dive_skill": "dive_skill",
-              "board": "board",
-              "area_of_dive": "area_of_dive",
-              "attempts": ["X", "O", "O", "X", "X", "O", "O", "X", "X", "X", "0", "x"],
-              "success_rate": "success_rate"
-            }}
-          ]
+        {{          
+            "dives": [
+                {{
+                  "dive_skill": "dive_skill",
+                  "board": "board",
+                  "area_of_dive": "area_of_dive",
+                  "attempts": ["X", "O", "O", "X", "X", "O", "O", "X", "X", "X", "0", "x"],
+                  "success_rate": "success_rate"
+                }}
+            ]
         }}
         </json_format>"""
     return prompt
