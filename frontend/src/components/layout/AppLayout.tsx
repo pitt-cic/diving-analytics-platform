@@ -1,19 +1,31 @@
-import React from "react";
+import React, { useState, createContext } from "react";
 import Sidebar from "./Sidebar";
 
-interface AppLayoutProps {
-  children: React.ReactNode;
-}
+// Context to provide sidebar open handler to pages
+export const SidebarContext = createContext<
+  | {
+      onOpenSidebar: () => void;
+    }
+  | undefined
+>(undefined);
 
-const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
+const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+
   return (
-    <div className="flex h-screen bg-gray-50">
-      <Sidebar />
-
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
+    <SidebarContext.Provider
+      value={{ onOpenSidebar: () => setIsMobileOpen(true) }}
+    >
+      <div className="flex h-screen bg-gray-50">
+        <Sidebar
+          isMobileOpen={isMobileOpen}
+          onClose={() => setIsMobileOpen(false)}
+        />
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <main className="flex-1 overflow-y-auto">{children}</main>
+        </div>
       </div>
-    </div>
+    </SidebarContext.Provider>
   );
 };
 
