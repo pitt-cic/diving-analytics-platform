@@ -208,6 +208,7 @@ const DiveLog: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [loading, setLoading] = useState(true); // NEW: loading state
+  const pendingImagesRef = useRef(pendingImages);
 
   // Fetch API data on mount (now async for signed URLs)
   useEffect(() => {
@@ -240,11 +241,50 @@ const DiveLog: React.FC = () => {
     });
   }, []);
 
-  // Helper to move image from pending to review after 3s
-  const moveToReview = (image: ImageData) => {
-    setPendingImages((prev) => prev.filter((img) => img.id !== image.id));
-    setReviewImages((prev) => [...prev, image]);
-  };
+  // Add polling for pending images
+  useEffect(() => {
+    pendingImagesRef.current = pendingImages;
+  }, [pendingImages]);
+
+  useEffect(() => {
+    if (pendingImages.length === 0) return;
+    const interval = setInterval(async () => {
+      const review = await getTrainingDataByStatus("PENDING_REVIEW");
+      const localPendingIds = pendingImagesRef.current.map((img: any) =>
+        String(img.id)
+      );
+      const backendReviewIds = (review.data || []).map((item: any) =>
+        String(item.id)
+      );
+      console.log("[Polling] Local pending IDs:", localPendingIds);
+      console.log("[Polling] Backend review IDs:", backendReviewIds);
+      const reviewIds = new Set(backendReviewIds);
+      // Which local pending images are now in review?
+      const toMove = pendingImagesRef.current.filter((img: any) =>
+        reviewIds.has(String(img.id))
+      );
+      console.log(
+        "[Polling] Images to move from pending to review:",
+        toMove.map((img: any) => img.id)
+      );
+      setPendingImages((prevPending) =>
+        prevPending.filter((img: any) => !reviewIds.has(String(img.id)))
+      );
+      // Use the ref to get the latest pending images
+      const newReviewImages = (review.data || []).filter((item: any) =>
+        pendingImagesRef.current.some(
+          (img: any) => String(img.id) === String(item.id)
+        )
+      );
+      if (newReviewImages.length > 0) {
+        const mapped = await Promise.all(
+          newReviewImages.map(mapApiToImageDataWithSignedUrl)
+        );
+        setReviewImages((prev) => [...prev, ...mapped]);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [pendingImages.length]);
 
   const handleFileUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
@@ -319,9 +359,6 @@ const DiveLog: React.FC = () => {
           )
         );
       }
-
-      // Move to review after 3s (regardless of upload status)
-      setTimeout(() => moveToReview(image), 3000);
     }
 
     // If nothing in review, set index to 0
