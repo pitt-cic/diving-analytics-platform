@@ -27,7 +27,7 @@ export class S3UploadService {
 
       await Storage.put(fileKey, file, {
         contentType: file.type,
-        level: "private",
+        level: "public",
         progressCallback: (progress: { loaded: number; total: number }) => {
           console.log(
             `Upload progress: ${progress.loaded}/${
@@ -38,7 +38,7 @@ export class S3UploadService {
       });
 
       const url = await Storage.get(fileKey, {
-        level: "private",
+        level: "public",
       });
 
       return {
@@ -74,7 +74,7 @@ export class S3UploadService {
     const timestamp = Date.now();
     const randomId = Math.random().toString(36).substring(2, 15);
     const fileExtension = file.name.split(".").pop() || "";
-    return `training-sheets/${timestamp}-${randomId}.${fileExtension}`;
+    return `${timestamp}-${randomId}.${fileExtension}`;
   }
 
   /**
@@ -85,7 +85,7 @@ export class S3UploadService {
   async deleteFile(key: string): Promise<boolean> {
     try {
       await Storage.remove(key, {
-        level: "private",
+        level: "public",
       });
       return true;
     } catch (error) {
@@ -102,7 +102,7 @@ export class S3UploadService {
   async getFileUrl(key: string): Promise<string | null> {
     try {
       const url = await Storage.get(key, {
-        level: "private",
+        level: "public",
       });
       return url as string;
     } catch (error) {
