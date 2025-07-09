@@ -174,6 +174,13 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
             indexName: 'extraction-status-index',
             partitionKey: {name: 'extraction_status', type: dynamodb.AttributeType.STRING},
         });
+
+        // Add GSI for querying by diver_id
+        trainingDataTable.addGlobalSecondaryIndex({
+            indexName: 'diver-id-index',
+            partitionKey: {name: 'diver_id', type: dynamodb.AttributeType.STRING},
+        });
+
         this.invokeBdaFunction = new lambda.Function(this, 'InvokeBdaFunction', {
             runtime: lambda.Runtime.PYTHON_3_13,
             handler: 'invoke_bda.handler',
@@ -264,7 +271,8 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
             timeout: cdk.Duration.seconds(30),
             environment: {
                 DIVERS_TABLE_NAME: this.diversTable.tableName,
-                RESULTS_TABLE_NAME: this.resultsTable.tableName
+                RESULTS_TABLE_NAME: this.resultsTable.tableName,
+                TRAINING_DATA_TABLE_NAME: trainingDataTable.tableName
             }
         });
 
@@ -326,7 +334,7 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
         this.divesTable.grantReadData(this.getDiverProfileFunction);
         this.diversTable.grantReadData(this.getDiverTrainingFunction);
         this.resultsTable.grantReadData(this.getDiverTrainingFunction);
-
+        trainingDataTable.grantReadData(this.getDiverTrainingFunction);
         this.diversTable.grantReadWriteData(this.importCompetitionDataFunction);
         this.competitionsTable.grantReadWriteData(this.importCompetitionDataFunction);
         this.resultsTable.grantReadWriteData(this.importCompetitionDataFunction);
