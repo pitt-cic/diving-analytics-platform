@@ -42,6 +42,8 @@ interface DiveLogModalProps {
     diveIndex?: number,
     repIndex?: number
   ) => void;
+  isNameValid: boolean;
+  nameError: string;
 }
 
 const drillTypeMap: Record<string, string> = {
@@ -65,6 +67,8 @@ export const DiveLogModal: React.FC<DiveLogModalProps> = ({
   onSave,
   onAccept,
   onDataEdit,
+  isNameValid,
+  nameError,
 }) => {
   if (!isOpen || !image) return null;
   const currentImage = image;
@@ -126,6 +130,7 @@ export const DiveLogModal: React.FC<DiveLogModalProps> = ({
                   style={{
                     display: currentImage.isEditing ? undefined : "none",
                   }}
+                  disabled={!isNameValid}
                 >
                   <Check className="h-4 w-4" />
                   Save
@@ -133,6 +138,7 @@ export const DiveLogModal: React.FC<DiveLogModalProps> = ({
                 <button
                   onClick={onAccept}
                   className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                  disabled={!isNameValid}
                 >
                   <Check className="h-4 w-4" />
                   Accept
@@ -144,18 +150,28 @@ export const DiveLogModal: React.FC<DiveLogModalProps> = ({
               <div className="flex items-center gap-4">
                 <label className="font-medium text-gray-700 w-16">Name:</label>
                 {currentImage.isEditing ? (
-                  <select
-                    value={currentImage.extractedData.Name}
-                    onChange={(e) => onDataEdit("Name", e.target.value)}
-                    className="flex-1 px-3 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select Diver</option>
-                    {PITT_DIVERS.map((diver) => (
-                      <option key={diver.id} value={diver.name}>
-                        {diver.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex-1 flex flex-col">
+                    <select
+                      value={currentImage.extractedData.Name}
+                      onChange={(e) => onDataEdit("Name", e.target.value)}
+                      className={`flex-1 px-3 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        !isNameValid ? "border-red-500" : ""
+                      }`}
+                      required
+                    >
+                      <option value="">Select Diver</option>
+                      {PITT_DIVERS.map((diver) => (
+                        <option key={diver.id} value={diver.name}>
+                          {diver.name}
+                        </option>
+                      ))}
+                    </select>
+                    {!isNameValid && (
+                      <span className="text-red-500 text-xs mt-1">
+                        {nameError}
+                      </span>
+                    )}
+                  </div>
                 ) : (
                   <span className="font-semibold text-lg">
                     {currentImage.extractedData.Name}

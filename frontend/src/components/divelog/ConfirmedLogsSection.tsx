@@ -41,9 +41,6 @@ export const ConfirmedLogsSection: React.FC<ConfirmedLogsSectionProps> = ({
                 File: {log.fileName}
               </div>
             </div>
-            {log.s3Key && (
-              <div className="text-green-600 font-medium">✓ Stored in S3</div>
-            )}
           </div>
         ))}
       </div>

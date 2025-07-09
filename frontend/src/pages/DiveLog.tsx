@@ -536,6 +536,18 @@ const DiveLog: React.FC = () => {
   }
 
   const currentImage = reviewImages[currentImageIndex];
+  let isNameValid = false;
+  let nameError = "";
+  if (currentImage && currentImage.extractedData) {
+    const name = currentImage.extractedData.Name?.trim();
+    if (!name) {
+      nameError = "Diver name is required";
+    } else if (!PITT_DIVERS.some((d) => d.name === name)) {
+      nameError = "Diver name must match a valid Pitt diver";
+    } else {
+      isNameValid = true;
+    }
+  }
 
   return (
     <>
@@ -605,6 +617,8 @@ const DiveLog: React.FC = () => {
             setModalOpen(false);
           }}
           onDataEdit={handleDataEdit}
+          isNameValid={isNameValid}
+          nameError={nameError}
         />
       </div>
     </>
