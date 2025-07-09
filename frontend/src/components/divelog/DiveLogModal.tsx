@@ -135,14 +135,17 @@ export const DiveLogModal: React.FC<DiveLogModalProps> = ({
                   <Check className="h-4 w-4" />
                   Save
                 </button>
-                <button
-                  onClick={onAccept}
-                  className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
-                  disabled={!isNameValid}
-                >
-                  <Check className="h-4 w-4" />
-                  Accept
-                </button>
+                {/* Only show Accept when not editing */}
+                {!currentImage.isEditing && (
+                  <button
+                    onClick={onAccept}
+                    className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                    disabled={!isNameValid}
+                  >
+                    <Check className="h-4 w-4" />
+                    Accept
+                  </button>
+                )}
               </div>
             </div>
             {/* Diver Info */}
@@ -173,8 +176,13 @@ export const DiveLogModal: React.FC<DiveLogModalProps> = ({
                     )}
                   </div>
                 ) : (
-                  <span className="font-semibold text-lg">
-                    {currentImage.extractedData.Name}
+                  <span className="font-semibold text-lg flex items-center gap-2">
+                    {isNameValid ? currentImage.extractedData.Name : ""}
+                    {!isNameValid && (
+                      <span className="text-red-500 text-xs ml-2 flex items-center gap-1">
+                        <AlertTriangle className="inline h-4 w-4" /> Needs edit
+                      </span>
+                    )}
                   </span>
                 )}
               </div>
