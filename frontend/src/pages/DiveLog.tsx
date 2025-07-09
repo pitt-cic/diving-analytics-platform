@@ -412,24 +412,35 @@ const DiveLog: React.FC = () => {
     );
   };
 
+  // Defensive acceptCurrentEntry
   const acceptCurrentEntry = () => {
     const currentImage = reviewImages[currentImageIndex];
+    if (!currentImage || !currentImage.extractedData) {
+      console.error(
+        "[acceptCurrentEntry] currentImage or extractedData is undefined",
+        { currentImage }
+      );
+      alert("Error: No current image or extracted data to confirm.");
+      return;
+    }
     const newLog: ConfirmedLog = {
       id: currentImage.id,
-      diverName: currentImage.extractedData.Name,
+      diverName: currentImage.extractedData.Name || "",
       date: new Date().toLocaleDateString(),
-      totalDives: currentImage.extractedData.Dives.length,
-      balks: currentImage.extractedData.Balks,
-      fileName: currentImage.file.name,
+      totalDives: currentImage.extractedData.Dives?.length || 0,
+      balks: currentImage.extractedData.Balks || 0,
+      fileName:
+        currentImage.file?.name ||
+        currentImage.s3Key ||
+        currentImage.s3Url ||
+        currentImage.id,
       s3Key: currentImage.s3Key,
       s3Url: currentImage.s3Url,
     };
     setConfirmedLogs((prev) => [newLog, ...prev]);
-    // Remove from reviewImages
     setReviewImages((prev) =>
       prev.filter((_, idx) => idx !== currentImageIndex)
     );
-    // Move to next image or reset
     if (currentImageIndex < reviewImages.length - 1) {
       setCurrentImageIndex((prev) => prev);
     } else {
@@ -440,11 +451,16 @@ const DiveLog: React.FC = () => {
     }
   };
 
-  const currentImage = reviewImages[currentImageIndex];
-
-  // Save handler for editing a dive log
+  // Enhanced handleSaveEdit with logging
   const handleSaveEdit = async () => {
     const img = reviewImages[currentImageIndex];
+    if (!img || !img.extractedData) {
+      console.error("[handleSaveEdit] No image or extracted data to save", {
+        img,
+      });
+      alert("Error: No image or extracted data to save.");
+      return;
+    }
     // Look up diver_id from PITT_DIVERS by name
     const diverName = img.extractedData.Name;
     const diverObj = PITT_DIVERS.find((d) => d.name === diverName);
@@ -455,15 +471,27 @@ const DiveLog: React.FC = () => {
       diver_id: diverId,
       updated_json: img.extractedData,
     };
-    // console.log("Payload to updateTrainingData:", payload);
+    console.log("[DEBUG] Payload to updateTrainingData:", payload);
     try {
       const response = await updateTrainingData(payload);
-      // console.log("[SAVE] updateTrainingData response:", response);
+      console.log("[DEBUG] updateTrainingData response:", response);
       alert("Saved successfully!");
       toggleEditMode();
-    } catch (error) {
+    } catch (error: any) {
       console.error("[SAVE] Error saving training data:", error);
-      alert("Failed to save. See console for details.");
+      if (
+        error &&
+        error.message &&
+        error.message.includes("Failed to update")
+      ) {
+        alert(
+          "Failed to save training data. Please check the backend logs and payload format."
+        );
+      } else {
+        alert(
+          "An unexpected error occurred while saving. See console for details."
+        );
+      }
     }
   };
 
@@ -506,6 +534,8 @@ const DiveLog: React.FC = () => {
       </div>
     );
   }
+
+  const currentImage = reviewImages[currentImageIndex];
 
   return (
     <>
