@@ -46,7 +46,10 @@ export const configureAmplify = () => {
       AWSS3: {
         bucket: config.aws.mediaBucket,
         region: config.aws.region,
-        level: "private",
+        level: "public",
+        customPrefix: {
+          public: "",
+        },
       },
     },
   };

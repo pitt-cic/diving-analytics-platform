@@ -3,7 +3,7 @@
  * @param s3Url - The S3 URL or key to generate a presigned URL for
  * @returns Promise<string | null> - The presigned URL or null if error
  */
-import { Storage, Auth } from "aws-amplify";
+import { Storage } from "aws-amplify";
 
 export default async function getPresignedUrl(
   s3Key: string // This should be the full key, e.g., 'private/abc123/myfile.jpg'
@@ -18,7 +18,7 @@ export default async function getPresignedUrl(
     // }
 
     const url = await Storage.get(s3Key, {
-      level: "private",
+      level: "public",
       expires: 3600,
     });
 
