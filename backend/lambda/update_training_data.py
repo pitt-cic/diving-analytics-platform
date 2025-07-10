@@ -90,16 +90,16 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         expression_attribute_names = {}
 
         # Update name
-        update_expression_parts.append('#name = :name')
-        expression_attribute_names['#name'] = 'name'
-        expression_attribute_values[':name'] = name
+        update_expression_parts.append('#diver_name = :diver_name')
+        expression_attribute_names['#diver_name'] = 'diver_name'
+        expression_attribute_values[':diver_name'] = name
 
         # Update diver_id
         update_expression_parts.append('diver_id = :diver_id')
         expression_attribute_values[':diver_id'] = str(diver_id)
 
         update_expression_parts.append('json_output = :updated_json')
-        expression_attribute_values[':updated_json'] = updated_json
+        expression_attribute_values[':updated_json'] = json.dumps(updated_json)
 
         # Add updated timestamp
         update_expression_parts.append('updated_at = :updated_at')

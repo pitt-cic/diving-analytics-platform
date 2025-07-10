@@ -1,59 +1,105 @@
 import json
-from typing import Dict, Any
+import boto3
+import os
+from botocore.exceptions import ClientError
 
-def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
+def handler(event, context):
     """
-    Lambda function to get training photo for a session
-    GET /api/divers/{diverId}/training/{sessionDate}/photo
+    Lambda function to get training photos from S3 bucket
     """
-    try:
-        # Extract parameters from path
-        path_params = event.get('pathParameters', {})
-        diver_id = path_params.get('diverId')
-        session_date = path_params.get('sessionDate')
-        
-        if not diver_id or not session_date:
-            return {
-                'statusCode': 400,
-                'headers': {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*'
-                },
-                'body': json.dumps({'error': 'Diver ID and session date are required'})
-            }
-        
-        # TODO: Replace with actual S3 query to get photo
-        # For now, simulate that some photos exist and some don't
-        if session_date == "2024-06-20":
-            # Return a mock response indicating photo exists
-            # In real implementation, you would fetch from S3 and return the image
-            return {
-                'statusCode': 200,
-                'headers': {
-                    'Content-Type': 'image/jpeg',
-                    'Access-Control-Allow-Origin': '*'
-                },
-                'body': 'Mock photo data - implement S3 retrieval',
-                'isBase64Encoded': False
-            }
-        else:
-            # Photo not found
-            return {
-                'statusCode': 404,
-                'headers': {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*'
-                },
-                'body': json.dumps({'error': 'Photo not found for this session'})
-            }
-        
-    except Exception as e:
-        print(f"Error: {str(e)}")
+    
+    # Initialize S3 client
+    s3_client = boto3.client('s3')
+    
+    # Get bucket name from environment variable
+    bucket_name = os.environ.get('OUTPUT_BUCKET_NAME')
+    
+    if not bucket_name:
         return {
             'statusCode': 500,
             'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': 'Content-Type',
+                'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'
             },
-            'body': json.dumps({'error': 'Internal server error'})
+            'body': json.dumps({
+                'error': 'OUTPUT_BUCKET_NAME environment variable not set'
+            })
+        }
+    
+    try:
+        # Get the photo key from the request
+        photo_key = event.get('pathParameters', {}).get('photoKey')
+        
+        if not photo_key:
+            return {
+                'statusCode': 400,
+                'headers': {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Headers': 'Content-Type',
+                    'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'
+                },
+                'body': json.dumps({
+                    'error': 'Photo key is required'
+                })
+            }
+        
+        # Generate a presigned URL for the photo
+        presigned_url = s3_client.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': bucket_name, 'Key': photo_key},
+            ExpiresIn=3600  # URL expires in 1 hour
+        )
+        
+        return {
+            'statusCode': 200,
+            'headers': {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': 'Content-Type',
+                'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'
+            },
+            'body': json.dumps({
+                'presigned_url': presigned_url,
+                'photo_key': photo_key
+            })
+        }
+        
+    except ClientError as e:
+        error_code = e.response['Error']['Code']
+        if error_code == 'NoSuchKey':
+            return {
+                'statusCode': 404,
+                'headers': {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Headers': 'Content-Type',
+                    'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'
+                },
+                'body': json.dumps({
+                    'error': 'Photo not found'
+                })
+            }
+        else:
+            return {
+                'statusCode': 500,
+                'headers': {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Headers': 'Content-Type',
+                    'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'
+                },
+                'body': json.dumps({
+                    'error': f'S3 error: {str(e)}'
+                })
+            }
+    
+    except Exception as e:
+        return {
+            'statusCode': 500,
+            'headers': {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': 'Content-Type',
+                'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'
+            },
+            'body': json.dumps({
+                'error': f'Internal server error: {str(e)}'
+            })
         }

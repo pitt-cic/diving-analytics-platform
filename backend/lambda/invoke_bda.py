@@ -179,6 +179,33 @@ def update_record_status(record_id, status, error_message=None):
         return False
 
 
+def get_names_of_divers():
+    try:
+        response = divers_table.scan()
+        items = response['Items']
+
+        # Handle pagination if there are more items
+        while 'LastEvaluatedKey' in response:
+            response = divers_table.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
+            items.extend(response['Items'])
+
+        # Extract names from the items
+        diver_names = []
+        for item in items:
+            name = item.get('name')
+            if name:  # Only add non-empty names
+                diver_names.append(name)
+
+        logger.info(f"Retrieved {len(diver_names)} diver names from DynamoDB")
+        return diver_names
+
+    except Exception as e:
+        logger.error(f"Error fetching diver names: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return []
+
+
 def handler(event, context):
     logger.info(f"Received event: {event}")
     for record in event["Records"]:
@@ -221,7 +248,7 @@ def handler(event, context):
 
                 diver_name, csv_data = extract_csv_from_result(result_data)
                 elements = extract_elements_from_result(result_data)
-                bedrock_json = get_json_from_bedrock.get_json_from_bedrock(elements)
+                bedrock_json = get_json_from_bedrock.get_json_from_bedrock(elements, names_of_divers=get_names_of_divers())
 
                 # Update record with results and PENDING_REVIEW status
                 if diver_name or csv_data or bedrock_json:
