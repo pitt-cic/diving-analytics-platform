@@ -27,6 +27,7 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
     public readonly importCompetitionDataFunction: lambda.Function;
     public readonly getTrainingDataByStatusFunction: lambda.Function;
     public readonly updateTrainingDataFunction: lambda.Function;
+    public readonly deleteTrainingDataFunction: lambda.Function;
     public readonly boto3Layer: lambda.LayerVersion;
 
     constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -325,7 +326,17 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
                 TRAINING_DATA_TABLE_NAME: trainingDataTable.tableName
             }
         });
-        this.outputBucket.grantRead(this.getTrainingPhotoFunction);
+        this.deleteTrainingDataFunction = new lambda.Function(this, 'DeleteTrainingDataFunction', {
+            runtime: lambda.Runtime.PYTHON_3_13,
+            handler: 'delete_training_data.handler',
+            code: lambda.Code.fromAsset('lambda'),
+            layers: [this.boto3Layer],
+            timeout: cdk.Duration.seconds(30),
+            memorySize: 512,
+            environment: {
+                TRAINING_DATA_TABLE_NAME: trainingDataTable.tableName
+            }
+        });        this.outputBucket.grantRead(this.getTrainingPhotoFunction);
 
         this.diversTable.grantReadData(this.getAllDiversFunction);
         this.diversTable.grantReadData(this.getDiverProfileFunction);
@@ -341,6 +352,7 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
         this.divesTable.grantReadWriteData(this.importCompetitionDataFunction);
         trainingDataTable.grantReadData(this.getTrainingDataByStatusFunction);
         trainingDataTable.grantReadWriteData(this.updateTrainingDataFunction);
+        trainingDataTable.grantReadWriteData(this.deleteTrainingDataFunction);
         this.inputBucket.addEventNotification(
             s3.EventType.OBJECT_CREATED,
             new s3n.LambdaDestination(this.invokeBdaFunction)

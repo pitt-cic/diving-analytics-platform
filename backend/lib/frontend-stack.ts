@@ -205,6 +205,21 @@ export class FrontendStack extends cdk.Stack {
         authenticatedRole.addToPolicy(new iam.PolicyStatement({
             effect: iam.Effect.ALLOW,
             actions: [
+                "s3:PutObject",
+                "s3:PutObjectAcl",
+                "s3:GetObject",
+                "s3:DeleteObject",
+                "s3:ListBucket"
+            ],
+            resources: [
+                props.backendStack.inputBucket.bucketArn,
+                `${props.backendStack.inputBucket.bucketArn}/*`
+            ],
+        }));
+
+        authenticatedRole.addToPolicy(new iam.PolicyStatement({
+            effect: iam.Effect.ALLOW,
+            actions: [
                 "execute-api:Invoke"
             ],
             resources: [
@@ -259,7 +274,12 @@ export class FrontendStack extends cdk.Stack {
             authorizer: cognitoAuthorizer,
             authorizationType: apigateway.AuthorizationType.COGNITO,
         });
-
+        // Add DELETE endpoint for deleting training data by ID
+        const trainingDataIdResource = trainingDataResource.addResource("{id}");
+        trainingDataIdResource.addMethod("DELETE", new apigateway.LambdaIntegration(props.backendStack.deleteTrainingDataFunction), {
+            authorizer: cognitoAuthorizer,
+            authorizationType: apigateway.AuthorizationType.COGNITO,
+        });
         const amplifyApp = new amplify.CfnApp(this, "DivingAnalyticsApp", {
             name: "diving-analytics-frontend",
             platform: "WEB",
