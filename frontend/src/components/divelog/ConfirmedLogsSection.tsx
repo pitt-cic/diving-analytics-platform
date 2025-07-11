@@ -10,38 +10,45 @@ interface ConfirmedLog {
   fileName: string;
   s3Key?: string;
   s3Url?: string;
+  url?: string; // Add url for image display
 }
 
 interface ConfirmedLogsSectionProps {
   confirmedLogs: ConfirmedLog[];
+  currentConfirmedIndex: number;
+  onOpenModal: (idx: number) => void;
 }
 
 export const ConfirmedLogsSection: React.FC<ConfirmedLogsSectionProps> = ({
   confirmedLogs,
+  currentConfirmedIndex,
+  onOpenModal,
 }) => (
   <div className="bg-white rounded-lg shadow p-4">
     <h3 className="text-lg font-semibold text-gray-800 mb-2">
       Recently Confirmed Logs
     </h3>
     {confirmedLogs.length > 0 ? (
-      <div className="flex flex-col gap-3">
-        {confirmedLogs.map((log) => (
-          <div key={log.id} className="border rounded-lg p-3 bg-gray-50">
-            <div className="flex items-start justify-between mb-1">
-              <h3 className="font-semibold text-base text-blue-900">
-                {log.diverName}
-              </h3>
-              <FileImage className="h-4 w-4 text-gray-400" />
-            </div>
-            <div className="space-y-0.5 text-xs text-gray-600">
-              <div>Date: {log.date}</div>
-              <div>Dives: {log.totalDives}</div>
-              <div>Balks: {log.balks}</div>
-              <div className="truncate" title={log.fileName}>
-                File: {log.fileName}
-              </div>
-            </div>
-          </div>
+      <div className="flex gap-4 flex-nowrap overflow-x-auto pb-2">
+        {confirmedLogs.map((log, idx) => (
+          <button
+            key={log.id}
+            className={`w-32 h-32 bg-gray-100 rounded-lg border-2 ${
+              idx === currentConfirmedIndex
+                ? "border-blue-500"
+                : "border-gray-200"
+            } flex flex-col items-center justify-center focus:outline-none flex-shrink-0`}
+            onClick={() => onOpenModal(idx)}
+          >
+            {log.url && (
+              <img
+                src={log.url}
+                alt="confirmed"
+                className="w-28 h-28 object-contain"
+                onError={(e) => (e.currentTarget.style.display = "none")}
+              />
+            )}
+          </button>
         ))}
       </div>
     ) : (

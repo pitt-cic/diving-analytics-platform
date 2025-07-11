@@ -16,8 +16,8 @@ const navigation: NavItem[] = [
   { name: "Dashboard", to: "/", icon: HomeIcon },
   { name: "Dive Log", to: "/dive-log", icon: ClipboardDocumentListIcon },
   { name: "Divers", to: "/divers", icon: UserGroupIcon },
-  { name: "Analytics", to: "/analytics", icon: ChartBarIcon },
-  { name: "Settings", to: "/settings", icon: Cog6ToothIcon },
+  // { name: "Analytics", to: "/analytics", icon: ChartBarIcon },
+  // { name: "Settings", to: "/settings", icon: Cog6ToothIcon },
 ];
 
 interface SidebarProps {
