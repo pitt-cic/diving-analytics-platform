@@ -10,10 +10,13 @@ import updateTrainingData from "../services/updateTrainingData";
 import getPresignedUrl from "../services/getPresignedUrl";
 import { Auth } from "aws-amplify";
 import { PITT_DIVERS } from "../constants/pittDivers";
-import { DiveLogModal } from "../components/divelog/DiveLogModal";
 import { PendingSection } from "../components/divelog/PendingSection";
 import { ReviewSection } from "../components/divelog/ReviewSection";
 import { ConfirmedLogsSection } from "../components/divelog/ConfirmedLogsSection";
+import {
+  ConfirmedLogModal,
+  DiveLogModal,
+} from "../components/divelog/DiveLogModal";
 
 // Types
 interface DiveEntry {
@@ -172,7 +175,9 @@ async function mapApiToImageDataWithSignedUrl(item: any): Promise<ImageData> {
 }
 
 // Helper to map API data to ConfirmedLog (no image needed)
-function mapApiToConfirmedLog(item: any): ConfirmedLog {
+function mapApiToConfirmedLog(
+  item: any
+): ConfirmedLog & { extractedData?: DiveData } {
   let extractedData = { Name: item.diver_name || "", Dives: [], Balks: 0 };
   if (item.json_output) {
     try {
@@ -180,12 +185,28 @@ function mapApiToConfirmedLog(item: any): ConfirmedLog {
         typeof item.json_output === "string"
           ? JSON.parse(item.json_output)
           : item.json_output;
+      let dives = parsed.dives || [];
+      // If dives is a string, parse it
+      if (typeof dives === "string") {
+        try {
+          dives = JSON.parse(dives);
+        } catch (e) {
+          console.error("Could not parse dives string as JSON:", dives);
+          dives = [];
+        }
+      }
       extractedData = {
-        Name: parsed.diver_info?.name || item.diver_name || "",
-        Balks: parsed.balks || 0,
-        Dives: parsed.dives || [],
+        Name: parsed.Name || parsed.diver_info?.name || item.diver_name || "",
+        Balks: parsed.Balks ?? parsed.balks ?? 0,
+        Dives: parsed.Dives ?? parsed.dives ?? [],
       };
-    } catch (e) {}
+    } catch (e) {
+      console.error(
+        "Error parsing json_output for confirmed log:",
+        e,
+        item.json_output
+      );
+    }
   }
   return {
     id: item.id,
@@ -196,6 +217,7 @@ function mapApiToConfirmedLog(item: any): ConfirmedLog {
     fileName: item.s3_key || item.s3_url || item.id,
     s3Key: item.s3_key,
     s3Url: item.s3_url,
+    extractedData, // <-- add this!
   };
 }
 
@@ -209,6 +231,11 @@ const DiveLog: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [loading, setLoading] = useState(true); // NEW: loading state
   const pendingImagesRef = useRef(pendingImages);
+  const [currentConfirmedIndex, setCurrentConfirmedIndex] = useState(0);
+  const [confirmedModalOpen, setConfirmedModalOpen] = useState(false);
+  const [confirmedLogsWithData, setConfirmedLogsWithData] = useState<
+    (ConfirmedLog & { url?: string; extractedData?: DiveData })[]
+  >([]);
 
   // Fetch API data on mount (now async for signed URLs)
   useEffect(() => {
@@ -285,6 +312,48 @@ const DiveLog: React.FC = () => {
     }, 1000);
     return () => clearInterval(interval);
   }, [pendingImages.length]);
+
+  useEffect(() => {
+    async function mapConfirmedLogs() {
+      const mapped = await Promise.all(
+        confirmedLogs.map(async (log) => {
+          let extractedData = undefined;
+          let url = undefined;
+          const found = [...reviewImages, ...pendingImages].find(
+            (img) => img.id === log.id
+          );
+          if (found && found.url) {
+            url = found.url;
+          } else if (log.s3Key) {
+            url = await getPresignedUrl(log.s3Key);
+          } else if (log.s3Url) {
+            // Try to extract key from s3Url and get presigned URL
+            const key = extractS3KeyFromUrl(log.s3Url);
+            if (key) {
+              const presigned = await getPresignedUrl(key);
+              if (presigned) url = presigned;
+            }
+          }
+          // After all url logic, ensure url is string or undefined
+          if (url == null) url = undefined;
+          // Fix: use type assertion to access extractedData
+          const logWithData = log as ConfirmedLog & {
+            extractedData?: DiveData;
+          };
+          if (found && found.extractedData) {
+            extractedData = found.extractedData;
+          }
+          return {
+            ...log,
+            url,
+            extractedData: extractedData || logWithData.extractedData,
+          };
+        })
+      );
+      setConfirmedLogsWithData(mapped);
+    }
+    mapConfirmedLogs();
+  }, [confirmedLogs, reviewImages, pendingImages]);
 
   const handleFileUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
@@ -398,6 +467,24 @@ const DiveLog: React.FC = () => {
             updatedData.Dives[diveIndex] = dive;
           }
           return { ...img, extractedData: updatedData };
+        }
+        return img;
+      })
+    );
+  };
+
+  // Handle table data changes (for the CSV table)
+  const handleTableDataChange = (newData: DiveEntry[]) => {
+    setReviewImages((prev) =>
+      prev.map((img, idx) => {
+        if (idx === currentImageIndex) {
+          return {
+            ...img,
+            extractedData: {
+              ...img.extractedData,
+              Dives: newData,
+            },
+          };
         }
         return img;
       })
@@ -600,7 +687,14 @@ const DiveLog: React.FC = () => {
             currentImageIndex={currentImageIndex}
             onOpenModal={handleOpenModal}
           />
-          <ConfirmedLogsSection confirmedLogs={confirmedLogs} />
+          <ConfirmedLogsSection
+            confirmedLogs={confirmedLogsWithData}
+            currentConfirmedIndex={currentConfirmedIndex}
+            onOpenModal={(idx: number) => {
+              setCurrentConfirmedIndex(idx);
+              setConfirmedModalOpen(true);
+            }}
+          />
         </div>
         {/* Modal for Review UI */}
         <DiveLogModal
@@ -617,9 +711,20 @@ const DiveLog: React.FC = () => {
             setModalOpen(false);
           }}
           onDataEdit={handleDataEdit}
+          onTableDataChange={handleTableDataChange}
           isNameValid={isNameValid}
           nameError={nameError}
         />
+        {/* Modal for Confirmed Logs */}
+        {confirmedModalOpen && confirmedLogsWithData.length > 0 && (
+          <ConfirmedLogModal
+            isOpen={confirmedModalOpen && confirmedLogsWithData.length > 0}
+            log={confirmedLogsWithData[currentConfirmedIndex]}
+            currentLogIndex={currentConfirmedIndex}
+            totalLogs={confirmedLogsWithData.length}
+            onClose={() => setConfirmedModalOpen(false)}
+          />
+        )}
       </div>
     </>
   );

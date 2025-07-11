@@ -355,6 +355,7 @@ export const DiverProfile: React.FC<DiverProfileProps> = ({ diver }) => {
       </div>
 
       {/* Tabs */}
+      {/*
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8" aria-label="Tabs">
           <button
@@ -381,6 +382,7 @@ export const DiverProfile: React.FC<DiverProfileProps> = ({ diver }) => {
           </button>
         </nav>
       </div>
+      */}
 
       {activeTab === "competition" ? (
         <>

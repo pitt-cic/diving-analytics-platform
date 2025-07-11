@@ -1,6 +1,8 @@
-import React from "react";
-import { X, Edit2, Check, AlertTriangle } from "lucide-react";
+import React, { useMemo, useCallback, useState } from "react";
+import { X, Edit2, Check, AlertTriangle, Download, Trash2 } from "lucide-react";
 import { PITT_DIVERS } from "../../constants/pittDivers";
+import Papa from "papaparse";
+import { useTable, Column, Row } from "react-table";
 
 interface DiveEntry {
   DiveCode: string;
@@ -42,6 +44,7 @@ interface DiveLogModalProps {
     diveIndex?: number,
     repIndex?: number
   ) => void;
+  onTableDataChange: (newData: DiveEntry[]) => void;
   isNameValid: boolean;
   nameError: string;
 }
@@ -57,7 +60,251 @@ const drillTypeMap: Record<string, string> = {
   UW: "Underwater",
 };
 
-export const DiveLogModal: React.FC<DiveLogModalProps> = ({
+// CSV Table Component
+interface CSVTableProps {
+  data: DiveEntry[];
+  isEditing: boolean;
+  onDataChange: (newData: DiveEntry[]) => void;
+}
+
+const CSVTable: React.FC<CSVTableProps> = React.memo(
+  ({ data, isEditing, onDataChange }) => {
+    // Function to add a new dive row
+    const addNewDive = () => {
+      const newDive: DiveEntry = {
+        DiveCode: "",
+        DrillType: "A", // Default to Approach
+        Reps: [],
+        Success: "",
+      };
+      onDataChange([...data, newDive]);
+    };
+    const columns = useMemo<Column<DiveEntry>[]>(
+      () => [
+        {
+          Header: "Dive Code",
+          accessor: "DiveCode",
+          Cell: ({ value, row }: { value: any; row: Row<DiveEntry> }) => {
+            const [localDiveCode, setLocalDiveCode] = useState(value);
+            React.useEffect(() => {
+              setLocalDiveCode(value);
+            }, [value]);
+            const isInvalid = isEditing && localDiveCode.trim() === "";
+            if (isEditing) {
+              return (
+                <input
+                  value={localDiveCode}
+                  onChange={(e) => setLocalDiveCode(e.target.value)}
+                  onBlur={() => {
+                    const newData = [...data];
+                    newData[row.index] = {
+                      ...newData[row.index],
+                      DiveCode: localDiveCode,
+                    };
+                    onDataChange(newData);
+                  }}
+                  className={`w-full px-2 py-1 border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                    isInvalid ? "border-red-500" : ""
+                  }`}
+                />
+              );
+            }
+            return <span className="font-semibold">{value}</span>;
+          },
+        },
+        {
+          Header: "Drill Type",
+          accessor: "DrillType",
+          Cell: ({ value, row }: { value: any; row: Row<DiveEntry> }) => {
+            if (isEditing) {
+              return (
+                <select
+                  key={`drilltype-${row.index}`}
+                  value={value}
+                  onChange={(e) => {
+                    const newData = [...data];
+                    newData[row.index] = {
+                      ...newData[row.index],
+                      DrillType: e.target.value,
+                    };
+                    onDataChange(newData);
+                  }}
+                  className="w-full px-2 py-1 border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                >
+                  {Object.keys(drillTypeMap).map((key) => (
+                    <option key={key} value={key}>
+                      {key} - {drillTypeMap[key]}
+                    </option>
+                  ))}
+                </select>
+              );
+            }
+            return (
+              <span className="font-semibold" title={drillTypeMap[value]}>
+                {value}
+              </span>
+            );
+          },
+        },
+        {
+          Header: "Success Rate",
+          accessor: "Success",
+          Cell: ({ value, row }: { value: any; row: Row<DiveEntry> }) => {
+            const [localNum, setLocalNum] = useState(
+              () => value.split("/")[0] || ""
+            );
+            const [localDen, setLocalDen] = useState(
+              () => value.split("/")[1] || ""
+            );
+            React.useEffect(() => {
+              setLocalNum(value.split("/")[0] || "");
+              setLocalDen(value.split("/")[1] || "");
+            }, [value]);
+            const numInvalid = isEditing && localNum.trim() === "";
+            const denInvalid = isEditing && localDen.trim() === "";
+            if (isEditing) {
+              return (
+                <div className="flex items-center gap-1">
+                  <input
+                    value={localNum}
+                    onChange={(e) => setLocalNum(e.target.value)}
+                    onBlur={() => {
+                      const newData = [...data];
+                      const newValue = `${localNum}/${localDen}`;
+                      newData[row.index] = {
+                        ...newData[row.index],
+                        Success: newValue,
+                      };
+                      onDataChange(newData);
+                    }}
+                    className={`w-12 px-1 py-1 border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 text-center ${
+                      numInvalid ? "border-red-500" : ""
+                    }`}
+                    placeholder="0"
+                  />
+                  <span className="text-gray-500">/</span>
+                  <input
+                    value={localDen}
+                    onChange={(e) => setLocalDen(e.target.value)}
+                    onBlur={() => {
+                      const newData = [...data];
+                      const newValue = `${localNum}/${localDen}`;
+                      newData[row.index] = {
+                        ...newData[row.index],
+                        Success: newValue,
+                      };
+                      onDataChange(newData);
+                    }}
+                    className={`w-12 px-1 py-1 border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 text-center ${
+                      denInvalid ? "border-red-500" : ""
+                    }`}
+                    placeholder="0"
+                  />
+                </div>
+              );
+            }
+            return (
+              <span className="font-semibold text-green-600">{value}</span>
+            );
+          },
+        },
+      ],
+      [data, isEditing, onDataChange]
+    );
+
+    const tableInstance = useTable({ columns, data });
+
+    const { getTableProps, getTableBodyProps, headerGroups, rows, prepareRow } =
+      tableInstance;
+
+    return (
+      <div className="space-y-3">
+        <div className="overflow-x-auto">
+          <table
+            {...getTableProps()}
+            className="w-full border-collapse border border-gray-300"
+          >
+            <thead>
+              {headerGroups.map((headerGroup: any) => (
+                <tr
+                  {...headerGroup.getHeaderGroupProps()}
+                  className="bg-gray-100"
+                >
+                  {headerGroup.headers.map((column: any) => (
+                    <th
+                      {...column.getHeaderProps()}
+                      className="border border-gray-300 px-3 py-2 text-left text-sm font-medium text-gray-700"
+                    >
+                      {column.render("Header")}
+                    </th>
+                  ))}
+                </tr>
+              ))}
+            </thead>
+            <tbody {...getTableBodyProps()}>
+              {rows.map((row: any) => {
+                prepareRow(row);
+                return (
+                  <tr
+                    {...row.getRowProps()}
+                    className="hover:bg-gray-50 relative"
+                  >
+                    {row.cells.map((cell: any) => (
+                      <td
+                        {...cell.getCellProps()}
+                        className="border border-gray-300 px-3 py-2 text-sm"
+                      >
+                        {cell.render("Cell")}
+                      </td>
+                    ))}
+                    {isEditing && (
+                      <td className="border border-gray-300 px-2 py-2 text-sm w-12">
+                        <button
+                          onClick={() => {
+                            const newData = data.filter(
+                              (_, index) => index !== row.index
+                            );
+                            onDataChange(newData);
+                          }}
+                          className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50 transition-colors"
+                          title="Remove dive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {isEditing && (
+          <button
+            onClick={addNewDive}
+            className="w-full bg-blue-100 text-blue-700 px-3 py-2 rounded border border-blue-300 hover:bg-blue-200 transition-colors text-sm font-medium"
+          >
+            + Add New Dive
+          </button>
+        )}
+      </div>
+    );
+  }
+);
+
+// Add validation for required fields in each row
+const validateDives = (dives: DiveEntry[]) => {
+  return dives.every(
+    (dive) =>
+      dive.DiveCode.trim() !== "" &&
+      dive.DrillType.trim() !== "" &&
+      /^\d+\s*\/\s*\d+$/.test(dive.Success.trim()) &&
+      dive.Success.split("/")[0].trim() !== "" &&
+      dive.Success.split("/")[1].trim() !== ""
+  );
+};
+
+const DiveLogModal: React.FC<DiveLogModalProps> = ({
   isOpen,
   image,
   currentImageIndex,
@@ -67,11 +314,48 @@ export const DiveLogModal: React.FC<DiveLogModalProps> = ({
   onSave,
   onAccept,
   onDataEdit,
+  onTableDataChange,
   isNameValid,
   nameError,
 }) => {
+  // Memoize the table data change handler (must be before any return)
+  const stableTableDataChange = useCallback(
+    (newData: DiveEntry[]) => {
+      onTableDataChange(newData);
+    },
+    [onTableDataChange]
+  );
+
   if (!isOpen || !image) return null;
   const currentImage = image;
+
+  const divesValid = validateDives(currentImage.extractedData.Dives);
+
+  // Download CSV function
+  const downloadCSV = () => {
+    const csvData = currentImage.extractedData.Dives.map((dive) => ({
+      "Dive Code": dive.DiveCode,
+      "Drill Type": dive.DrillType,
+      "Success Rate": dive.Success,
+    }));
+
+    const csv = Papa.unparse(csvData);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `${currentImage.extractedData.Name}_dives_${
+        new Date().toISOString().split("T")[0]
+      }.csv`
+    );
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
       <div className="bg-white rounded-lg shadow-2xl max-w-5xl w-full mx-4 p-8 relative overflow-y-auto max-h-[95vh]">
@@ -89,9 +373,6 @@ export const DiveLogModal: React.FC<DiveLogModalProps> = ({
               <h3 className="text-xl font-semibold text-gray-900">
                 Image {currentImageIndex + 1} of {totalImages}
               </h3>
-              <span className="text-sm text-gray-500">
-                {currentImage.file?.name || "No file"}
-              </span>
             </div>
             <div className="border rounded-lg overflow-hidden bg-gray-100">
               <img
@@ -130,7 +411,7 @@ export const DiveLogModal: React.FC<DiveLogModalProps> = ({
                   style={{
                     display: currentImage.isEditing ? undefined : "none",
                   }}
-                  disabled={!isNameValid}
+                  disabled={!isNameValid || !divesValid}
                 >
                   <Check className="h-4 w-4" />
                   Save
@@ -140,7 +421,7 @@ export const DiveLogModal: React.FC<DiveLogModalProps> = ({
                   <button
                     onClick={onAccept}
                     className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
-                    disabled={!isNameValid}
+                    disabled={!isNameValid || !divesValid}
                   >
                     <Check className="h-4 w-4" />
                     Accept
@@ -202,100 +483,26 @@ export const DiveLogModal: React.FC<DiveLogModalProps> = ({
                 )}
               </div>
             </div>
-            {/* Dives */}
+            {/* Dives Table */}
             <div className="space-y-4">
-              <h4 className="font-semibold text-gray-900">
-                Dives ({currentImage.extractedData.Dives.length})
-              </h4>
-              <div className="space-y-3 md:max-h-96 overflow-y-auto">
-                {currentImage.extractedData.Dives.map((dive, diveIdx) => (
-                  <div key={diveIdx} className="border rounded-lg p-4 bg-white">
-                    <div className="grid grid-cols-4 gap-4 mb-3">
-                      <div>
-                        <label className="text-sm font-medium text-gray-600">
-                          Dive Code
-                        </label>
-                        {currentImage.isEditing ? (
-                          <input
-                            type="text"
-                            value={dive.DiveCode}
-                            onChange={(e) =>
-                              onDataEdit("DiveCode", e.target.value, diveIdx)
-                            }
-                            className="w-full px-2 py-1 border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          />
-                        ) : (
-                          <div className="font-semibold">{dive.DiveCode}</div>
-                        )}
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-600">
-                          Drill Type
-                        </label>
-                        {currentImage.isEditing ? (
-                          <select
-                            value={dive.DrillType}
-                            onChange={(e) =>
-                              onDataEdit("DrillType", e.target.value, diveIdx)
-                            }
-                            className="w-full px-2 py-1 border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          >
-                            {Object.keys(drillTypeMap).map((key) => (
-                              <option key={key} value={key}>
-                                {key} - {drillTypeMap[key]}
-                              </option>
-                            ))}
-                          </select>
-                        ) : (
-                          <div
-                            className="font-semibold"
-                            title={drillTypeMap[dive.DrillType]}
-                          >
-                            {dive.DrillType}
-                          </div>
-                        )}
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-600">
-                          Success Rate
-                        </label>
-                        <div className="font-semibold text-green-600">
-                          {dive.Success}
-                        </div>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-600 block mb-2">
-                        Repetitions
-                      </label>
-                      <div className="flex flex-wrap gap-1">
-                        {dive.Reps.map((rep, repIdx) => (
-                          <span
-                            key={repIdx}
-                            className={`w-8 h-8 flex items-center justify-center text-sm font-bold rounded cursor-pointer ${
-                              rep === "O"
-                                ? "bg-green-100 text-green-800 border-2 border-green-300"
-                                : "bg-red-100 text-red-800 border-2 border-red-300"
-                            } ${
-                              currentImage.isEditing ? "hover:opacity-75" : ""
-                            }`}
-                            onClick={() =>
-                              currentImage.isEditing &&
-                              onDataEdit(
-                                "Reps",
-                                rep === "O" ? "X" : "O",
-                                diveIdx,
-                                repIdx
-                              )
-                            }
-                          >
-                            {rep}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+              <div className="flex items-center justify-between">
+                <h4 className="font-semibold text-gray-900">
+                  Dives ({currentImage.extractedData.Dives.length})
+                </h4>
+                <button
+                  onClick={downloadCSV}
+                  className="flex items-center gap-2 bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition-colors"
+                >
+                  <Download className="h-4 w-4" />
+                  Download CSV
+                </button>
+              </div>
+              <div className="md:max-h-96 overflow-y-auto">
+                <CSVTable
+                  data={currentImage.extractedData.Dives}
+                  isEditing={currentImage.isEditing}
+                  onDataChange={stableTableDataChange}
+                />
               </div>
             </div>
           </div>
@@ -304,3 +511,165 @@ export const DiveLogModal: React.FC<DiveLogModalProps> = ({
     </div>
   );
 };
+
+interface ConfirmedLogModalProps {
+  isOpen: boolean;
+  log:
+    | {
+        url?: string;
+        diverName: string;
+        date: string;
+        totalDives: number;
+        balks: number;
+        extractedData?: DiveData;
+      }
+    | undefined;
+  currentLogIndex: number;
+  totalLogs: number;
+  onClose: () => void;
+}
+
+const ConfirmedLogModal: React.FC<ConfirmedLogModalProps> = ({
+  isOpen,
+  log,
+  currentLogIndex,
+  totalLogs,
+  onClose,
+}) => {
+  if (!isOpen || !log) return null;
+  // Always use extractedData if present
+  const extracted = log.extractedData || {
+    Name: log.diverName,
+    Balks: log.balks,
+    Dives: [],
+  };
+
+  // Download CSV function
+  const downloadCSV = () => {
+    const csvData = (extracted.Dives || []).map((dive) => ({
+      "Dive Code": dive.DiveCode,
+      "Drill Type": dive.DrillType,
+      "Success Rate": dive.Success,
+    }));
+    const csv = Papa.unparse(csvData);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `${extracted.Name}_dives_${new Date().toISOString().split("T")[0]}.csv`
+    );
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
+      <div className="bg-white rounded-lg shadow-2xl max-w-5xl w-full mx-4 p-8 relative overflow-y-auto max-h-[95vh]">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl font-bold focus:outline-none"
+          aria-label="Close"
+        >
+          &times;
+        </button>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Image Display */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-semibold text-gray-900">
+                Image {currentLogIndex + 1} of {totalLogs}
+              </h3>
+            </div>
+            <div className="border rounded-lg overflow-hidden bg-gray-100">
+              {log.url && (
+                <img
+                  src={log.url}
+                  alt="Training sheet"
+                  className="w-full h-96 object-contain"
+                />
+              )}
+            </div>
+          </div>
+
+          {/* Extracted Data */}
+          <div className="space-y-6">
+            <div className="flex flex-col md:flex-row items-center md:justify-between">
+              <h3 className="text-xl font-semibold md:mb-0 mb-3 text-gray-900">
+                Extracted Data
+              </h3>
+              <button
+                onClick={downloadCSV}
+                className="flex items-center gap-2 bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition-colors"
+              >
+                <Download className="h-4 w-4" />
+                Download CSV
+              </button>
+            </div>
+            {/* Diver Info */}
+            <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+              <div className="flex items-center gap-4">
+                <label className="font-medium text-gray-700 w-16">Name:</label>
+                <span className="font-semibold text-lg flex items-center gap-2">
+                  {extracted.Name}
+                </span>
+              </div>
+              <div className="flex items-center gap-4">
+                <label className="font-medium text-gray-700 w-16">Balks:</label>
+                <span className="font-semibold">{extracted.Balks}</span>
+              </div>
+            </div>
+            {/* Dives Table */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="font-semibold text-gray-900">
+                  Dives ({extracted.Dives.length})
+                </h4>
+              </div>
+              <div className="md:max-h-96 overflow-y-auto">
+                <table className="w-full border-collapse border border-gray-300">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium text-gray-700">
+                        Dive Code
+                      </th>
+                      <th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium text-gray-700">
+                        Drill Type
+                      </th>
+                      <th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium text-gray-700">
+                        Success Rate
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {extracted.Dives.map((dive, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50 relative">
+                        <td className="border border-gray-300 px-3 py-2 text-sm font-semibold">
+                          {dive.DiveCode}
+                        </td>
+                        <td
+                          className="border border-gray-300 px-3 py-2 text-sm font-semibold"
+                          title={drillTypeMap[dive.DrillType] || dive.DrillType}
+                        >
+                          {dive.DrillType}
+                        </td>
+                        <td className="border border-gray-300 px-3 py-2 text-sm font-semibold text-green-600">
+                          {dive.Success}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export { DiveLogModal, ConfirmedLogModal };
