@@ -3,6 +3,7 @@ import logging
 import os
 import time
 import uuid
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any
 
@@ -64,7 +65,7 @@ def create_initial_record(record_id, s3_url, diver_name=None):
         item = {
             'id': record_id,
             'extraction_status': STATUS_PROCESSING,
-            'created_at': int(time.time() * 1000),
+            'created_at': datetime.now(timezone.utc).isoformat(),
             's3_url': s3_url
         }
 
@@ -119,7 +120,7 @@ def update_record_with_results(record_id, diver_name, json_output, extracted_csv
             ':status': STATUS_PENDING_REVIEW,
             ':json_output': json_output,
             ':csv': extracted_csv,
-            ':updated_at': int(time.time() * 1000)
+            ':updated_at': datetime.now(timezone.utc).isoformat()
         }
 
         # Add diver_name if not already present
@@ -158,7 +159,7 @@ def update_record_status(record_id, status, error_message=None):
         update_expression = "SET extraction_status = :status, updated_at = :updated_at"
         expression_attribute_values = {
             ':status': status,
-            ':updated_at': int(time.time() * 1000)
+            ':updated_at': datetime.now(timezone.utc).isoformat()
         }
 
         if error_message:
@@ -248,9 +249,11 @@ def handler(event, context):
 
                 diver_name, csv_data = extract_csv_from_result(result_data)
                 elements = extract_elements_from_result(result_data)
-                bedrock_json = get_json_from_bedrock.get_json_from_bedrock(elements, names_of_divers=get_names_of_divers())
+                sheet_type = "competition" if "competition" in key_name else None
+                bedrock_json = get_json_from_bedrock.get_json_from_bedrock(elements,
+                                                                           names_of_divers=get_names_of_divers(),
+                                                                           sheet_type=sheet_type)
 
-                # Update record with results and PENDING_REVIEW status
                 if diver_name or csv_data or bedrock_json:
                     update_record_with_results(record_id, diver_name, bedrock_json, csv_data)
                 else:

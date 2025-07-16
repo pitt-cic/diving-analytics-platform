@@ -269,7 +269,7 @@ export class FrontendStack extends cdk.Stack {
             }
         });
 
-        // Add PUT endpoint for updating training data
+        // Add a PUT endpoint for updating training data
         trainingDataResource.addMethod("PUT", new apigateway.LambdaIntegration(props.backendStack.updateTrainingDataFunction), {
             authorizer: cognitoAuthorizer,
             authorizationType: apigateway.AuthorizationType.COGNITO,
