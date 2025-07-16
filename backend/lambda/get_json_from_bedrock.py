@@ -144,6 +144,6 @@ def build_bedrock_payload(bedrock_prompt: str) -> str:
     return request
 
 
-def sanitize_response(response: str) -> str:
-    sanitized_response = response.replace("```", "").replace("json", "").strip()
+def sanitize_response(response: str):
+    sanitized_response = response.replace("```", "").replace("json", "").replace("'", "").strip()
     return sanitized_response
