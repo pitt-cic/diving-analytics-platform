@@ -113,20 +113,20 @@ def get_diver_id_by_name(diver_name) -> Any | None:
         return None
 
 
-def update_record_with_results(record_id, diver_name, json_output, extracted_csv):
+def update_record_with_results(record_id, json_output, extracted_csv):
     try:
+
         update_expression = "SET extraction_status = :status, json_output = :json_output, extracted_csv = :csv, updated_at = :updated_at"
         expression_attribute_values = {
             ':status': STATUS_PENDING_REVIEW,
-            ':json_output': json_output,
+            ':json_output': json.dumps({"dives": json.loads(json_output)["dives"]}),
             ':csv': extracted_csv,
             ':updated_at': datetime.now(timezone.utc).isoformat()
         }
 
-        # Add diver_name if not already present
-        if diver_name:
-            update_expression += ", diver_name = :diver_name"
-            expression_attribute_values[':diver_name'] = diver_name
+        diver_name = (json.loads(json_output)["diver_name"])
+        update_expression += ", diver_name = :diver_name"
+        expression_attribute_values[':diver_name'] = diver_name
 
         diver_id = get_diver_id_by_name(diver_name)
 
@@ -255,7 +255,7 @@ def handler(event, context):
                                                                            sheet_type=sheet_type)
 
                 if diver_name or csv_data or bedrock_json:
-                    update_record_with_results(record_id, diver_name, bedrock_json, csv_data)
+                    update_record_with_results(record_id, bedrock_json, csv_data)
                 else:
                     logger.warning("Warning: No extractable data found")
                     update_record_status(record_id, STATUS_FAILED, "No extractable data found")
