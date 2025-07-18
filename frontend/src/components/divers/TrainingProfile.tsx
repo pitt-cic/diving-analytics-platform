@@ -15,6 +15,53 @@ import {
   Tooltip,
   Bar,
 } from "recharts";
+import getTrainingDataByStatus from "../../services/getTrainingDataByStatus";
+import { ConfirmedLogModal } from "../divelog/DiveLogModal";
+import { PITT_DIVERS } from "../../constants/pittDivers";
+import getPresignedUrl from "../../services/getPresignedUrl";
+
+// Copy of mapApiToConfirmedLog from DiveLog
+function mapApiToConfirmedLog(item: any) {
+  let extractedData = {
+    Name: item.diver_name || "",
+    Dives: [],
+    comment: "",
+    rating: undefined,
+  };
+  if (item.json_output) {
+    try {
+      const parsed =
+        typeof item.json_output === "string"
+          ? JSON.parse(item.json_output)
+          : item.json_output;
+      let dives = parsed.dives || [];
+      if (typeof dives === "string") {
+        try {
+          dives = JSON.parse(dives);
+        } catch (e) {
+          dives = [];
+        }
+      }
+      extractedData = {
+        Name: parsed.Name || parsed.diver_info?.name || item.diver_name || "",
+        Dives: parsed.Dives ?? parsed.dives ?? [],
+        comment: parsed.comment || item.comment || "",
+        rating: parsed.rating || item.rating || undefined,
+      };
+    } catch (e) {}
+  }
+  return {
+    id: item.id,
+    diverName: extractedData.Name,
+    date: item.updated_at ? new Date(item.updated_at).toLocaleDateString() : "",
+    totalDives: extractedData.Dives?.length || 0,
+    balks: 0,
+    fileName: item.s3_key || item.s3_url || item.id,
+    s3Key: item.s3_key,
+    s3Url: item.s3_url,
+    extractedData,
+  };
+}
 
 interface TrainingDive {
   code: string;
@@ -92,6 +139,76 @@ export const TrainingProfile: React.FC<TrainingProfileProps> = ({
   today,
   diveCodePerformanceData,
 }) => {
+  const [confirmedLogs, setConfirmedLogs] = React.useState<any[]>([]);
+  const [loadingLogs, setLoadingLogs] = React.useState(true);
+  const [logsError, setLogsError] = React.useState<string | null>(null);
+  const [modalOpen, setModalOpen] = React.useState(false);
+  const [selectedLogIndex, setSelectedLogIndex] = React.useState(0);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    setLoadingLogs(true);
+    setLogsError(null);
+    (async () => {
+      try {
+        // Fetch all confirmed logs using the raw API call
+        const result = await getTrainingDataByStatus("CONFIRMED");
+        const mapped = (result.data || []).map(mapApiToConfirmedLog);
+        // Find diver by id or name in PITT_DIVERS
+        const diverObj = PITT_DIVERS.find(
+          (d) =>
+            d.name === diverWithTraining.name ||
+            d.id === (diverWithTraining as any).id
+        );
+        // Filter logs for this diver
+        let filtered = mapped.filter((log: any) => {
+          if (diverObj && log.extractedData?.Name) {
+            return (
+              log.extractedData.Name.trim().toLowerCase() ===
+              diverObj.name.trim().toLowerCase()
+            );
+          }
+          return false;
+        });
+        // For each filtered log, resolve the S3 image URL
+        filtered = await Promise.all(
+          filtered.map(async (log: any) => {
+            let url = undefined;
+            if (log.s3Key) {
+              url = await getPresignedUrl(log.s3Key);
+            } else if (log.s3Url) {
+              try {
+                const key = log.s3Url.startsWith("http")
+                  ? new URL(log.s3Url).pathname.slice(1)
+                  : log.s3Url;
+                url = await getPresignedUrl(key);
+              } catch {}
+            }
+            return { ...log, url };
+          })
+        );
+        // Sort logs by date descending (most recent first)
+        filtered.sort((a: any, b: any) => {
+          const dateA = new Date(a.date).getTime();
+          const dateB = new Date(b.date).getTime();
+          return dateB - dateA;
+        });
+        if (isMounted) {
+          setConfirmedLogs(filtered);
+          setLoadingLogs(false);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setLogsError("Failed to load confirmed training logs");
+          setLoadingLogs(false);
+        }
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, [diverWithTraining.name, (diverWithTraining as any).id]);
+
   return (
     <div className="space-y-6">
       {/* Training Stats */}
@@ -243,89 +360,79 @@ export const TrainingProfile: React.FC<TrainingProfileProps> = ({
         </div>
       </div>
 
-      {/* Training History */}
+      {/* Confirmed Training Logs Section */}
       <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          Training History
+          Confirmed Training Logs
         </h3>
-        <div className="space-y-4">
-          {diverWithTraining.training?.sessions?.map(
-            (session: TrainingSession, index: number) => (
-              <div
-                key={index}
-                id={`session-${session.date}`}
-                className="border-l-4 border-green-500 px-4 py-3 bg-gray-50 rounded-r-lg"
+        {loadingLogs ? (
+          <div className="text-gray-500">Loading logs...</div>
+        ) : logsError ? (
+          <div className="text-red-500">{logsError}</div>
+        ) : confirmedLogs.length === 0 ? (
+          <div className="text-gray-500">No confirmed logs for this diver.</div>
+        ) : (
+          <div className="space-y-2">
+            {confirmedLogs.map((log, idx) => (
+              <button
+                key={log.id || idx}
+                className="w-full text-left p-4 rounded border border-blue-100 hover:bg-blue-50 transition flex justify-between items-center"
+                onClick={() => {
+                  setSelectedLogIndex(idx);
+                  setModalOpen(true);
+                }}
               >
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <h4 className="font-semibold text-gray-900">
-                      {new Date(session.date).toLocaleDateString()}
-                    </h4>
-                    <p className="text-sm text-gray-600">
-                      {session.dives.length} dives • {session.balks} balks
-                    </p>
-                  </div>
-                  <button
-                    className="flex items-center gap-2 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
-                    onClick={() => {
-                      // TODO: Implement photo viewing functionality
-                      console.log("View photo for session:", session.date);
-                    }}
-                  >
-                    <PhotoIcon className="h-4 w-4" />
-                    View Photo
-                  </button>
-                </div>
-
-                <div className="mt-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                    {session.dives.map(
-                      (dive: TrainingDive, diveIndex: number) => (
-                        <div
-                          key={diveIndex}
-                          className="bg-white p-3 rounded border"
-                        >
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <p className="font-medium text-sm">{dive.code}</p>
-                              <p className="text-xs text-gray-600 mb-1">
-                                {dive.drillType}
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              <p className="font-bold text-sm">
-                                Success: {dive.success}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="mt-2">
-                            <p className="text-xs text-gray-500">Reps:</p>
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {dive.reps.map(
-                                (rep: string, repIndex: number) => (
-                                  <span
-                                    key={repIndex}
-                                    className={`w-6 h-6 flex items-center justify-center text-xs font-bold rounded ${
-                                      rep === "O"
-                                        ? "bg-green-100 text-green-800"
-                                        : "bg-red-100 text-red-800"
-                                    }`}
-                                  >
-                                    {rep}
-                                  </span>
-                                )
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    )}
-                  </div>
-                </div>
-              </div>
-            )
-          )}
-        </div>
+                <span>
+                  <span className="font-semibold text-blue-900">
+                    {log.diverName}
+                  </span>{" "}
+                  <span className="text-gray-500">on</span>{" "}
+                  <span className="font-mono text-gray-700">{log.date}</span>
+                </span>
+                <span className="text-sm text-gray-600">
+                  {log.totalDives || 0} dives
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+        {/* Modal for confirmed log with navigation */}
+        <ConfirmedLogModal
+          isOpen={modalOpen && confirmedLogs.length > 0}
+          log={
+            confirmedLogs[selectedLogIndex]
+              ? {
+                  ...confirmedLogs[selectedLogIndex],
+                  url: confirmedLogs[selectedLogIndex].url,
+                }
+              : undefined
+          }
+          currentLogIndex={selectedLogIndex}
+          totalLogs={confirmedLogs.length}
+          onClose={() => setModalOpen(false)}
+        />
+        {modalOpen && confirmedLogs.length > 0 && (
+          <div className="flex justify-between mt-4">
+            <button
+              className="px-4 py-2 rounded bg-gray-200 text-gray-700 font-semibold disabled:opacity-50"
+              onClick={() => setSelectedLogIndex((i) => Math.max(0, i - 1))}
+              disabled={selectedLogIndex === 0}
+            >
+              Previous
+            </button>
+            <button
+              className="px-4 py-2 rounded bg-gray-200 text-gray-700 font-semibold disabled:opacity-50"
+              onClick={() =>
+                setSelectedLogIndex((i) =>
+                  Math.min(confirmedLogs.length - 1, i + 1)
+                )
+              }
+              disabled={selectedLogIndex === confirmedLogs.length - 1}
+            >
+              Next
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
