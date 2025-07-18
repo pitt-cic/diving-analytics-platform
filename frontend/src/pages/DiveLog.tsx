@@ -86,7 +86,6 @@ const generateMockData = (): DiveData => {
 
   return {
     Name: randomDiver.name,
-    Balks: Math.floor(Math.random() * 15),
     Dives: dives,
     comment: "",
     rating: undefined,
@@ -131,7 +130,6 @@ async function mapApiToImageDataWithSignedUrl(item: any): Promise<ImageData> {
   // Parse json_output if present
   let extractedData: DiveData = {
     Name: item.diver_name || "",
-    Balks: 0,
     Dives: [],
     comment: "",
     rating: undefined,
@@ -144,7 +142,6 @@ async function mapApiToImageDataWithSignedUrl(item: any): Promise<ImageData> {
           : item.json_output;
       extractedData = {
         Name: parsed.diver_info?.name || item.diver_name || "",
-        Balks: parsed.balks || 0,
         Dives: (parsed.dives || []).map((d: any) => ({
           DiveCode: d.dive_skill || d.code || "",
           DrillType: d.area_of_dive || d.drillType || "",
@@ -178,7 +175,6 @@ function mapApiToConfirmedLog(
   let extractedData = {
     Name: item.diver_name || "",
     Dives: [],
-    Balks: 0,
     comment: "",
     rating: undefined,
   };
@@ -200,7 +196,6 @@ function mapApiToConfirmedLog(
       }
       extractedData = {
         Name: parsed.Name || parsed.diver_info?.name || item.diver_name || "",
-        Balks: parsed.Balks ?? parsed.balks ?? 0,
         Dives: parsed.Dives ?? parsed.dives ?? [],
         comment: parsed.comment || item.comment || "",
         rating: parsed.rating || item.rating || undefined,
@@ -218,7 +213,7 @@ function mapApiToConfirmedLog(
     diverName: extractedData.Name,
     date: item.updated_at ? new Date(item.updated_at).toLocaleDateString() : "",
     totalDives: extractedData.Dives?.length || 0,
-    balks: extractedData.Balks || 0,
+    balks: 0, // Removed Balks from ConfirmedLog
     fileName: item.s3_key || item.s3_url || item.id,
     s3Key: item.s3_key,
     s3Url: item.s3_url,
@@ -452,8 +447,6 @@ const DiveLog: React.FC = () => {
           const updatedData = { ...img.extractedData };
           if (field === "Name") {
             updatedData.Name = value;
-          } else if (field === "Balks") {
-            updatedData.Balks = parseInt(value) || 0;
           } else if (field === "comment") {
             updatedData.comment = value;
           } else if (field === "rating") {
@@ -526,7 +519,7 @@ const DiveLog: React.FC = () => {
       diverName: currentImage.extractedData.Name || "",
       date: new Date().toLocaleDateString(),
       totalDives: currentImage.extractedData.Dives?.length || 0,
-      balks: currentImage.extractedData.Balks || 0,
+      balks: 0, // Removed Balks from ConfirmedLog
       fileName:
         currentImage.file?.name ||
         currentImage.s3Key ||

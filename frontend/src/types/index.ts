@@ -81,7 +81,6 @@ export interface DiveEntry {
 
 export interface DiveData {
   Name: string;
-  Balks: number;
   Dives: DiveEntry[];
   comment?: string;
   rating?: "green" | "yellow" | "red";
