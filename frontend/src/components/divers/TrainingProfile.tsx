@@ -236,16 +236,16 @@ export const TrainingProfile: React.FC<TrainingProfileProps> = ({
               </button>
             </div>
           </div>
-          {/* Legend */}
+          {/* New Legend for Rating Colors */}
           <div className="mb-2 flex items-center gap-4">
-            <span className="inline-flex items-center px-2 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium">
-              Session
+            <span className="inline-flex items-center px-2 py-1 rounded-full bg-green-500 text-white text-xs font-medium">
+              Green: Good
             </span>
-            <span className="inline-flex items-center px-2 py-1 rounded-full bg-gray-200 text-gray-500 text-xs font-medium">
-              No Session
+            <span className="inline-flex items-center px-2 py-1 rounded-full bg-yellow-400 text-white text-xs font-medium">
+              Yellow: Average
             </span>
-            <span className="inline-flex items-center px-2 py-1 rounded-full border border-blue-500 text-blue-700 text-xs font-medium">
-              Today
+            <span className="inline-flex items-center px-2 py-1 rounded-full bg-red-500 text-white text-xs font-medium">
+              Red: Poor
             </span>
           </div>
           <div className="rounded-xl bg-white">
@@ -271,36 +271,46 @@ export const TrainingProfile: React.FC<TrainingProfileProps> = ({
                 ))}
                 {/* Actual days of the month */}
                 {monthDays.map((date, i) => {
-                  const session = calendarSessions.find(
-                    (d) => d.date.toDateString() === date.toDateString()
-                  );
-                  const isToday = today.toDateString() === date.toDateString();
+                  // Find log for this date
+                  const logIdx = confirmedLogs.findIndex((log) => {
+                    const logDate = log.date
+                      ? new Date(log.date).toDateString()
+                      : "";
+                    return logDate === date.toDateString();
+                  });
+                  const log = logIdx !== -1 ? confirmedLogs[logIdx] : null;
+                  // Default to green if log exists but no rating
+                  const rating =
+                    log?.extractedData?.rating || (log ? "green" : undefined);
+                  let colorClass = "bg-gray-100 text-gray-400";
+                  if (log) {
+                    if (rating === "green")
+                      colorClass =
+                        "bg-green-500 text-white cursor-pointer hover:bg-green-600";
+                    else if (rating === "yellow")
+                      colorClass =
+                        "bg-yellow-400 text-white cursor-pointer hover:bg-yellow-500";
+                    else if (rating === "red")
+                      colorClass =
+                        "bg-red-500 text-white cursor-pointer hover:bg-red-600";
+                  }
                   return (
                     <div
                       key={date.toISOString()}
                       className="flex items-center justify-center p-0.5"
                       onClick={() => {
-                        if (session) {
-                          const element = document.getElementById(
-                            `session-${
-                              session.date.toISOString().split("T")[0]
-                            }`
-                          );
-                          element?.scrollIntoView({ behavior: "smooth" });
+                        if (log) {
+                          setSelectedLogIndex(logIdx);
+                          setModalOpen(true);
                         }
                       }}
                     >
                       <div
                         className={
                           `w-11 h-11 aspect-square flex items-center justify-center rounded-full text-base font-semibold transition-all duration-150 ` +
-                          (session
-                            ? isToday
-                              ? "bg-blue-600 text-white border-2 border-blue-800 shadow-lg cursor-pointer hover:bg-blue-700"
-                              : "bg-blue-200 text-blue-900 cursor-pointer hover:bg-blue-300"
-                            : isToday
-                            ? "border-2 border-blue-500 bg-white text-blue-700"
-                            : "bg-gray-100 text-gray-400")
+                          colorClass
                         }
+                        style={{ cursor: log ? "pointer" : "default" }}
                       >
                         {date.getDate()}
                       </div>
