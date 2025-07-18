@@ -4,8 +4,6 @@ import {
   HomeIcon,
   ClipboardDocumentListIcon,
   UserGroupIcon,
-  ChartBarIcon,
-  Cog6ToothIcon,
   XMarkIcon,
   ArrowLeftOnRectangleIcon,
 } from "@heroicons/react/24/outline";

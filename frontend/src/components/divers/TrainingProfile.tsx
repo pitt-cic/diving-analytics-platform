@@ -4,17 +4,7 @@ import {
   CalendarIcon,
   ChartBarIcon,
   TrophyIcon,
-  PhotoIcon,
 } from "@heroicons/react/24/outline";
-import {
-  ResponsiveContainer,
-  BarChart,
-  CartesianGrid,
-  XAxis,
-  YAxis,
-  Tooltip,
-  Bar,
-} from "recharts";
 import getTrainingDataByStatus from "../../services/getTrainingDataByStatus";
 import { ConfirmedLogModal } from "../divelog/DiveLogModal";
 import { PITT_DIVERS } from "../../constants/pittDivers";
@@ -141,6 +131,10 @@ export const TrainingProfile: React.FC<TrainingProfileProps> = ({
   const [modalOpen, setModalOpen] = React.useState(false);
   const [selectedLogIndex, setSelectedLogIndex] = React.useState(0);
 
+  // Extract diverName and diverId for useEffect dependencies
+  const diverName = diverWithTraining.name;
+  const diverId = (diverWithTraining as any).id;
+
   React.useEffect(() => {
     let isMounted = true;
     setLoadingLogs(true);
@@ -152,9 +146,7 @@ export const TrainingProfile: React.FC<TrainingProfileProps> = ({
         const mapped = (result.data || []).map(mapApiToConfirmedLog);
         // Find diver by id or name in PITT_DIVERS
         const diverObj = PITT_DIVERS.find(
-          (d) =>
-            d.name === diverWithTraining.name ||
-            d.id === (diverWithTraining as any).id
+          (d) => d.name === diverName || d.id === diverId
         );
         // Filter logs for this diver
         let filtered = mapped.filter((log: any) => {
@@ -203,7 +195,7 @@ export const TrainingProfile: React.FC<TrainingProfileProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [diverWithTraining.name, (diverWithTraining as any).id]);
+  }, [diverName, diverId]);
 
   // Calculate trainingStats from confirmedLogs (real backend data only)
   const totalSessions = confirmedLogs.length;

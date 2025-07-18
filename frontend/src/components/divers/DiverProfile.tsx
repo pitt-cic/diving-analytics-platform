@@ -230,11 +230,11 @@ export const DiverProfile: React.FC<DiverProfileProps> = ({ diver }) => {
     }));
   }, [diver, selectedDiveCode]);
 
-  const handleBarClick = (data: any, index: number) => {
-    if (data && data.code) {
-      setSelectedDiveCode(data.code);
-    }
-  };
+  // const handleBarClick = (data: any, index: number) => {
+  //   if (data && data.code) {
+  //     setSelectedDiveCode(data.code);
+  //   }
+  // };
 
   const handleBackClick = () => {
     setSelectedDiveCode(null);

@@ -93,16 +93,16 @@ const generateMockData = (): DiveData => {
 };
 
 // Drill type mapping
-const drillTypeMap: Record<string, string> = {
-  A: "Approach",
-  TO: "Takeoff",
-  CON: "Connection",
-  S: "Shape",
-  CO: "Comeout",
-  ADJ: "Adjustment",
-  RIP: "Entry",
-  UW: "Underwater",
-};
+// const drillTypeMap: Record<string, string> = {
+//   A: "Approach",
+//   TO: "Takeoff",
+//   CON: "Connection",
+//   S: "Shape",
+//   CO: "Comeout",
+//   ADJ: "Adjustment",
+//   RIP: "Entry",
+//   UW: "Underwater",
+// };
 
 // Improved S3 key extraction from S3 URL
 function extractS3KeyFromUrl(s3Url: string): string | null {
@@ -121,8 +121,8 @@ async function mapApiToImageDataWithSignedUrl(item: any): Promise<ImageData> {
   if (s3Key) {
     imageUrl = (await getPresignedUrl(s3Key)) || "";
     // Log only part of the key if sensitive
-    const safeKey =
-      s3Key.length > 10 ? s3Key.slice(0, 5) + "..." + s3Key.slice(-5) : s3Key;
+    // const safeKey =
+    //   s3Key.length > 10 ? s3Key.slice(0, 5) + "..." + s3Key.slice(-5) : s3Key;
     // console.log("[DEBUG] S3 Key:", safeKey, "Presigned URL:", imageUrl);
   } else {
     // console.warn("[DEBUG] No S3 key found for item:", item.id);
