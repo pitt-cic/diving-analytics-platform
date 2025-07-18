@@ -627,18 +627,20 @@ const ConfirmedLogModal: React.FC<ConfirmedLogModalProps> = ({
   onClose,
 }) => {
   if (!isOpen || !log) return null;
-  // Always use extractedData if present
   const extracted = log.extractedData || {
     Name: log.diverName,
     Balks: log.balks,
     Dives: [],
+    comment: "",
+    rating: undefined,
   };
 
-  // Download CSV function
+  // Download CSV function (same as DiveLogModal)
   const downloadCSV = () => {
     const csvData = (extracted.Dives || []).map((dive) => ({
       "Dive Code": dive.DiveCode,
       "Drill Type": dive.DrillType,
+      Board: dive.Board,
       "Success Rate": dive.Success,
     }));
     const csv = Papa.unparse(csvData);
@@ -655,6 +657,9 @@ const ConfirmedLogModal: React.FC<ConfirmedLogModalProps> = ({
     link.click();
     document.body.removeChild(link);
   };
+
+  // Format date (fallback to empty string if not present)
+  const formattedDate = log.date || "";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
@@ -685,35 +690,63 @@ const ConfirmedLogModal: React.FC<ConfirmedLogModalProps> = ({
             </div>
           </div>
 
-          {/* Extracted Data */}
+          {/* Extracted Data (now shows date) */}
           <div className="space-y-6">
             <div className="flex flex-col md:flex-row items-center md:justify-between">
               <h3 className="text-xl font-semibold md:mb-0 mb-3 text-gray-900">
-                Extracted Data
+                {formattedDate}
               </h3>
-              <button
-                onClick={downloadCSV}
-                className="flex items-center gap-2 bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition-colors"
-              >
-                <Download className="h-4 w-4" />
-                Download CSV
-              </button>
+              {/* REMOVE TOP DOWNLOAD CSV BUTTON */}
             </div>
             {/* Diver Info */}
-            <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-              <div className="flex items-center gap-4">
-                <label className="font-medium text-gray-700 w-16">Name:</label>
-                <span className="font-semibold text-lg flex items-center gap-2">
-                  {extracted.Name}
-                </span>
+            <div className="space-y-4 mb-6">
+              {/* Diver Name */}
+              <div className="space-y-2">
+                <label className="block font-medium text-gray-700">
+                  Diver Name
+                </label>
+                <div className="flex items-center gap-1 font-semibold text-base text-gray-900">
+                  {extracted.Name || ""}
+                </div>
+              </div>
+              {/* Log Rating */}
+              <div className="space-y-2">
+                <label className="block font-medium text-gray-700">
+                  Log Rating
+                </label>
+                {extracted.rating ? (
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`inline-block w-4 h-4 rounded-full
+                        ${extracted.rating === "green" ? "bg-green-500" : ""}
+                        ${extracted.rating === "yellow" ? "bg-yellow-400" : ""}
+                        ${extracted.rating === "red" ? "bg-red-500" : ""}
+                      `}
+                    ></span>
+                    <span className="font-semibold">
+                      {extracted.rating.charAt(0).toUpperCase() +
+                        extracted.rating.slice(1)}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="font-semibold text-base text-gray-900"></span>
+                )}
               </div>
             </div>
+            <hr className="my-4 border-gray-200" />
             {/* Dives Table */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h4 className="font-semibold text-gray-900">
                   Dives ({extracted.Dives.length})
                 </h4>
+                <button
+                  onClick={downloadCSV}
+                  className="flex items-center gap-2 bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition-colors"
+                >
+                  <Download className="h-4 w-4" />
+                  Download CSV
+                </button>
               </div>
               <div className="md:max-h-96 overflow-y-auto">
                 <table className="w-full border-collapse border border-gray-300">
@@ -721,6 +754,9 @@ const ConfirmedLogModal: React.FC<ConfirmedLogModalProps> = ({
                     <tr className="bg-gray-100">
                       <th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium text-gray-700">
                         Dive Code
+                      </th>
+                      <th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium text-gray-700">
+                        Board
                       </th>
                       <th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium text-gray-700">
                         Drill Type
@@ -736,6 +772,9 @@ const ConfirmedLogModal: React.FC<ConfirmedLogModalProps> = ({
                         <td className="border border-gray-300 px-3 py-2 text-sm font-semibold">
                           {dive.DiveCode}
                         </td>
+                        <td className="border border-gray-300 px-3 py-2 text-sm font-semibold">
+                          {dive.Board}
+                        </td>
                         <td
                           className="border border-gray-300 px-3 py-2 text-sm font-semibold"
                           title={drillTypeMap[dive.DrillType] || dive.DrillType}
@@ -749,6 +788,15 @@ const ConfirmedLogModal: React.FC<ConfirmedLogModalProps> = ({
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+            {/* Comment Box */}
+            <div className="space-y-2">
+              <label className="block font-medium text-gray-700">Comment</label>
+              <div className="bg-gray-50 rounded p-3 min-h-[60px] text-gray-700 whitespace-pre-line">
+                {extracted.comment || (
+                  <span className="text-gray-400">No comment</span>
+                )}
               </div>
             </div>
           </div>
