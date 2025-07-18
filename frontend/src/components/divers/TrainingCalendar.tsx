@@ -27,11 +27,11 @@ const TrainingCalendar: React.FC<TrainingCalendarProps> = ({
 }) => {
   return (
     <div
-      className={`lg:col-span-2 bg-white p-4 rounded-lg border border-gray-200 flex flex-col ${heightClass}`}
+      className={`lg:col-span-2 bg-white p-4 rounded-lg border shadow-sm border-gray-200 flex flex-col ${heightClass}`}
       style={{ minHeight: 220 }}
     >
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-lg font-semibold text-gray-900">
+      <div className="flex items-center justify-between mb-0">
+        <h3 className="text-lg font-semibold text-gray-900 ml-2">
           Training Calendar
         </h3>
         <div className="flex items-center gap-2">
@@ -51,11 +51,11 @@ const TrainingCalendar: React.FC<TrainingCalendarProps> = ({
         </div>
       </div>
       <hr className="my-2 border-gray-200" />
-      <div className="mb-3" />
+      <div className="mb-0" />
       {/* Responsive indicators and calendar grid */}
-      <div className="flex flex-col lg:flex-row lg:items-start flex-1 w-full max-w-2xl mx-auto">
+      <div className="flex flex-col lg:flex-row lg:items-start flex-1 w-full max-w-3xl mx-auto">
         {/* Indicators: row on mobile, column on desktop */}
-        <div className="flex flex-row justify-center gap-2 mb-3 lg:mb-0 lg:flex-col lg:justify-start lg:items-end lg:mr-6">
+        <div className="flex flex-row lg:mt-6 justify-center gap-2 mb-3 lg:mb-0 lg:flex-col lg:justify-start lg:items-start lg:mr-16 lg:ml-2">
           <span className="inline-flex items-center px-2 py-1 rounded-full bg-green-500 text-white text-xs font-medium">
             Green: Good
           </span>
@@ -67,7 +67,7 @@ const TrainingCalendar: React.FC<TrainingCalendarProps> = ({
           </span>
         </div>
         {/* Calendar grid */}
-        <div className="flex-1">
+        <div className="flex-1 mr-2">
           <div className="grid grid-cols-7 gap-x-2 gap-y-1 mb-1 w-full">
             {dayLetters.map((day) => (
               <div
