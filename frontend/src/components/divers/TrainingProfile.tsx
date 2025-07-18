@@ -103,11 +103,6 @@ interface DiverWithTraining {
 
 interface TrainingProfileProps {
   diverWithTraining: DiverWithTraining;
-  trainingStats: {
-    totalSessions: number;
-    totalDives: number;
-    successRate: number;
-  };
   trainingCalendarData: { date: Date; count: number; successRate: number }[];
   calendarMonth: number;
   calendarYear: number;
@@ -128,7 +123,6 @@ interface TrainingProfileProps {
 
 export const TrainingProfile: React.FC<TrainingProfileProps> = ({
   diverWithTraining,
-  trainingStats,
   trainingCalendarData,
   calendarMonth,
   calendarYear,
@@ -211,6 +205,54 @@ export const TrainingProfile: React.FC<TrainingProfileProps> = ({
     };
   }, [diverWithTraining.name, (diverWithTraining as any).id]);
 
+  // Calculate trainingStats from confirmedLogs (real backend data only)
+  const totalSessions = confirmedLogs.length;
+  const totalDives = confirmedLogs.reduce(
+    (sum, log) => sum + (log.totalDives || 0),
+    0
+  );
+  // Try to get a successRate from each log, fallback to 0 if not available
+  const logSuccessRates = confirmedLogs
+    .map((log) => {
+      // Try to get a numeric successRate from extractedData if present
+      if (
+        log.extractedData &&
+        typeof log.extractedData.successRate === "number"
+      ) {
+        return log.extractedData.successRate;
+      }
+      // Try to calculate from Dives if possible
+      if (
+        log.extractedData &&
+        Array.isArray(log.extractedData.Dives) &&
+        log.extractedData.Dives.length > 0
+      ) {
+        const dives = log.extractedData.Dives;
+        let total = 0,
+          count = 0;
+        dives.forEach((dive: any) => {
+          if (typeof dive.Success === "string" && dive.Success.includes("/")) {
+            const [num, den] = dive.Success.split("/").map(Number);
+            if (!isNaN(num) && !isNaN(den) && den > 0) {
+              total += num / den;
+              count++;
+            }
+          }
+        });
+        if (count > 0) {
+          return Math.round((total / count) * 100);
+        }
+      }
+      return 0;
+    })
+    .filter((val) => typeof val === "number" && !isNaN(val));
+  const successRate =
+    logSuccessRates.length > 0
+      ? Math.round(
+          logSuccessRates.reduce((a, b) => a + b, 0) / logSuccessRates.length
+        )
+      : 0;
+
   return (
     <div className="space-y-6">
       {/* Training Calendar and Stat Cards */}
@@ -223,7 +265,7 @@ export const TrainingProfile: React.FC<TrainingProfileProps> = ({
           monthName={monthName}
           goToPrevMonth={goToPrevMonth}
           goToNextMonth={goToNextMonth}
-          onLogClick={(logIdx) => {
+          onLogClick={(logIdx: number) => {
             setSelectedLogIndex(logIdx);
             setModalOpen(true);
           }}
@@ -234,17 +276,17 @@ export const TrainingProfile: React.FC<TrainingProfileProps> = ({
         <div className="flex flex-col gap-6">
           <StatCard
             title="Training Sessions"
-            value={trainingStats.totalSessions}
+            value={totalSessions > 0 ? totalSessions : "No data"}
             icon={<CalendarIcon className="h-6 w-6 text-blue-500" />}
           />
           <StatCard
             title="Total Training Dives"
-            value={trainingStats.totalDives}
+            value={totalDives > 0 ? totalDives : "No data"}
             icon={<ChartBarIcon className="h-6 w-6 text-green-500" />}
           />
           <StatCard
             title="Success Rate"
-            value={`${trainingStats.successRate}%`}
+            value={successRate > 0 ? `${successRate}%` : "No data"}
             icon={<TrophyIcon className="h-6 w-6 text-yellow-500" />}
           />
         </div>

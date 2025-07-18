@@ -95,22 +95,8 @@ export const DiverProfile: React.FC<DiverProfileProps> = ({ diver }) => {
     };
   }, [diver]);
 
-  const trainingStats = useMemo(() => {
-    if (!diverWithTraining.training) {
-      return {
-        totalSessions: 0,
-        totalDives: 0,
-        successRate: 0,
-      };
-    }
-
-    const { sessions, totalDives, successRate } = diverWithTraining.training;
-    return {
-      totalSessions: sessions.length,
-      totalDives,
-      successRate,
-    };
-  }, [diverWithTraining.training]);
+  // Remove the useMemo-based trainingStats calculation and instead expect trainingStats as a prop from TrainingProfile, calculated from confirmedLogs.
+  // Update the TrainingProfile to calculate trainingStats from confirmedLogs and pass it down.
 
   const trainingCalendarData = useMemo(() => {
     if (!diverWithTraining.training?.sessions) return [];
@@ -378,7 +364,6 @@ export const DiverProfile: React.FC<DiverProfileProps> = ({ diver }) => {
       ) : (
         <TrainingProfile
           diverWithTraining={diverWithTraining}
-          trainingStats={trainingStats}
           trainingCalendarData={trainingCalendarData}
           calendarMonth={calendarMonth}
           calendarYear={calendarYear}
