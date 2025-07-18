@@ -332,28 +332,6 @@ export const TrainingProfile: React.FC<TrainingProfileProps> = ({
           totalLogs={confirmedLogs.length}
           onClose={() => setModalOpen(false)}
         />
-        {modalOpen && confirmedLogs.length > 0 && (
-          <div className="flex justify-between mt-4">
-            <button
-              className="px-4 py-2 rounded bg-gray-200 text-gray-700 font-semibold disabled:opacity-50"
-              onClick={() => setSelectedLogIndex((i) => Math.max(0, i - 1))}
-              disabled={selectedLogIndex === 0}
-            >
-              Previous
-            </button>
-            <button
-              className="px-4 py-2 rounded bg-gray-200 text-gray-700 font-semibold disabled:opacity-50"
-              onClick={() =>
-                setSelectedLogIndex((i) =>
-                  Math.min(confirmedLogs.length - 1, i + 1)
-                )
-              }
-              disabled={selectedLogIndex === confirmedLogs.length - 1}
-            >
-              Next
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );
