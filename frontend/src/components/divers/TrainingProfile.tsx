@@ -212,29 +212,10 @@ export const TrainingProfile: React.FC<TrainingProfileProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Training Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <StatCard
-          title="Training Sessions"
-          value={trainingStats.totalSessions}
-          icon={<CalendarIcon className="h-6 w-6 text-blue-500" />}
-        />
-        <StatCard
-          title="Total Training Dives"
-          value={trainingStats.totalDives}
-          icon={<ChartBarIcon className="h-6 w-6 text-green-500" />}
-        />
-        <StatCard
-          title="Success Rate"
-          value={`${trainingStats.successRate}%`}
-          icon={<TrophyIcon className="h-6 w-6 text-yellow-500" />}
-        />
-      </div>
-
-      {/* Training Calendar and Dive Code Performance */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Training Calendar and Stat Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Training Calendar */}
-        <div className="bg-white p-6 rounded-lg border border-gray-200">
+        <div className="lg:col-span-2 bg-white p-6 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-lg font-semibold text-gray-900">
               Training Calendar
@@ -330,34 +311,23 @@ export const TrainingProfile: React.FC<TrainingProfileProps> = ({
             </div>
           </div>
         </div>
-
-        {/* Dive Code Performance */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            Dive Code Performance
-          </h3>
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={diveCodePerformanceData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="code" />
-                <YAxis domain={[0, 100]} />
-                <Tooltip
-                  formatter={(value: number) => [
-                    `${value.toFixed(1)}%`,
-                    "Success Rate",
-                  ]}
-                  labelFormatter={(label) => `Dive Code: ${label}`}
-                />
-                <Bar
-                  dataKey="successRate"
-                  fill="#3B82F6"
-                  barSize={50}
-                  className="cursor-pointer hover:opacity-80 transition-opacity"
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+        {/* Stat Cards */}
+        <div className="flex flex-col gap-6">
+          <StatCard
+            title="Training Sessions"
+            value={trainingStats.totalSessions}
+            icon={<CalendarIcon className="h-6 w-6 text-blue-500" />}
+          />
+          <StatCard
+            title="Total Training Dives"
+            value={trainingStats.totalDives}
+            icon={<ChartBarIcon className="h-6 w-6 text-green-500" />}
+          />
+          <StatCard
+            title="Success Rate"
+            value={`${trainingStats.successRate}%`}
+            icon={<TrophyIcon className="h-6 w-6 text-yellow-500" />}
+          />
         </div>
       </div>
 
