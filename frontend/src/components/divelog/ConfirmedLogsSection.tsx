@@ -1,5 +1,5 @@
 import React from "react";
-import { FileImage } from "lucide-react";
+import ConfirmedLogCard from "../common/ConfirmedLogCard";
 
 interface ConfirmedLog {
   id: string;
@@ -31,24 +31,9 @@ export const ConfirmedLogsSection: React.FC<ConfirmedLogsSectionProps> = ({
     {confirmedLogs.length > 0 ? (
       <div className="flex gap-4 flex-nowrap overflow-x-auto pb-2">
         {confirmedLogs.map((log, idx) => (
-          <button
-            key={log.id}
-            className={`w-32 h-32 bg-gray-100 rounded-lg border-2 ${
-              idx === currentConfirmedIndex
-                ? "border-blue-500"
-                : "border-gray-200"
-            } flex flex-col items-center justify-center focus:outline-none flex-shrink-0`}
-            onClick={() => onOpenModal(idx)}
-          >
-            {log.url && (
-              <img
-                src={log.url}
-                alt="confirmed"
-                className="w-28 h-28 object-contain"
-                onError={(e) => (e.currentTarget.style.display = "none")}
-              />
-            )}
-          </button>
+          <div key={log.id} className="w-40 min-w-[10rem] flex-shrink-0">
+            <ConfirmedLogCard log={log} onClick={() => onOpenModal(idx)} />
+          </div>
         ))}
       </div>
     ) : (

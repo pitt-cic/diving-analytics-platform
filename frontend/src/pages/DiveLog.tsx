@@ -17,21 +17,9 @@ import {
   ConfirmedLogModal,
   DiveLogModal,
 } from "../components/divelog/DiveLogModal";
+import type { DiveEntry, DiveData } from "../types/index";
 
 // Types
-interface DiveEntry {
-  DiveCode: string;
-  DrillType: string;
-  Reps: string[];
-  Success: string;
-}
-
-interface DiveData {
-  Name: string;
-  Balks: number;
-  Dives: DiveEntry[];
-}
-
 interface ImageData {
   id: string;
   file: File;
@@ -71,6 +59,7 @@ const generateMockData = (): DiveData => {
     "300S",
   ];
   const drillTypes = ["A", "TO", "CON", "S", "CO", "ADJ", "RIP", "UW"];
+  const boards = ["1M", "3M", "5M", "7.5M", "10M"]; // Example boards
 
   const generateReps = (count: number) => {
     return Array.from({ length: count }, () =>
@@ -88,6 +77,7 @@ const generateMockData = (): DiveData => {
       return {
         DiveCode: diveCodes[Math.floor(Math.random() * diveCodes.length)],
         DrillType: drillTypes[Math.floor(Math.random() * drillTypes.length)],
+        Board: boards[Math.floor(Math.random() * boards.length)],
         Reps: reps,
         Success: `${successCount}/${repCount}`,
       };
@@ -96,22 +86,23 @@ const generateMockData = (): DiveData => {
 
   return {
     Name: randomDiver.name,
-    Balks: Math.floor(Math.random() * 15),
     Dives: dives,
+    comment: "",
+    rating: undefined,
   };
 };
 
 // Drill type mapping
-const drillTypeMap: Record<string, string> = {
-  A: "Approach",
-  TO: "Takeoff",
-  CON: "Connection",
-  S: "Shape",
-  CO: "Comeout",
-  ADJ: "Adjustment",
-  RIP: "Entry",
-  UW: "Underwater",
-};
+// const drillTypeMap: Record<string, string> = {
+//   A: "Approach",
+//   TO: "Takeoff",
+//   CON: "Connection",
+//   S: "Shape",
+//   CO: "Comeout",
+//   ADJ: "Adjustment",
+//   RIP: "Entry",
+//   UW: "Underwater",
+// };
 
 // Improved S3 key extraction from S3 URL
 function extractS3KeyFromUrl(s3Url: string): string | null {
@@ -130,8 +121,8 @@ async function mapApiToImageDataWithSignedUrl(item: any): Promise<ImageData> {
   if (s3Key) {
     imageUrl = (await getPresignedUrl(s3Key)) || "";
     // Log only part of the key if sensitive
-    const safeKey =
-      s3Key.length > 10 ? s3Key.slice(0, 5) + "..." + s3Key.slice(-5) : s3Key;
+    // const safeKey =
+    //   s3Key.length > 10 ? s3Key.slice(0, 5) + "..." + s3Key.slice(-5) : s3Key;
     // console.log("[DEBUG] S3 Key:", safeKey, "Presigned URL:", imageUrl);
   } else {
     // console.warn("[DEBUG] No S3 key found for item:", item.id);
@@ -139,8 +130,9 @@ async function mapApiToImageDataWithSignedUrl(item: any): Promise<ImageData> {
   // Parse json_output if present
   let extractedData: DiveData = {
     Name: item.diver_name || "",
-    Balks: 0,
     Dives: [],
+    comment: "",
+    rating: undefined,
   };
   if (item.json_output) {
     try {
@@ -150,13 +142,15 @@ async function mapApiToImageDataWithSignedUrl(item: any): Promise<ImageData> {
           : item.json_output;
       extractedData = {
         Name: parsed.diver_info?.name || item.diver_name || "",
-        Balks: parsed.balks || 0,
         Dives: (parsed.dives || []).map((d: any) => ({
           DiveCode: d.dive_skill || d.code || "",
           DrillType: d.area_of_dive || d.drillType || "",
+          Board: d.board || d.Board || "",
           Reps: d.attempts || d.reps || [],
           Success: d.success_rate || d.success || "",
         })),
+        comment: parsed.comment || item.comment || "",
+        rating: parsed.rating || item.rating || undefined,
       };
     } catch (e) {
       // fallback to empty
@@ -178,7 +172,12 @@ async function mapApiToImageDataWithSignedUrl(item: any): Promise<ImageData> {
 function mapApiToConfirmedLog(
   item: any
 ): ConfirmedLog & { extractedData?: DiveData } {
-  let extractedData = { Name: item.diver_name || "", Dives: [], Balks: 0 };
+  let extractedData = {
+    Name: item.diver_name || "",
+    Dives: [],
+    comment: "",
+    rating: undefined,
+  };
   if (item.json_output) {
     try {
       const parsed =
@@ -197,8 +196,9 @@ function mapApiToConfirmedLog(
       }
       extractedData = {
         Name: parsed.Name || parsed.diver_info?.name || item.diver_name || "",
-        Balks: parsed.Balks ?? parsed.balks ?? 0,
         Dives: parsed.Dives ?? parsed.dives ?? [],
+        comment: parsed.comment || item.comment || "",
+        rating: parsed.rating || item.rating || undefined,
       };
     } catch (e) {
       console.error(
@@ -213,7 +213,7 @@ function mapApiToConfirmedLog(
     diverName: extractedData.Name,
     date: item.updated_at ? new Date(item.updated_at).toLocaleDateString() : "",
     totalDives: extractedData.Dives?.length || 0,
-    balks: extractedData.Balks || 0,
+    balks: 0, // Removed Balks from ConfirmedLog
     fileName: item.s3_key || item.s3_url || item.id,
     s3Key: item.s3_key,
     s3Url: item.s3_url,
@@ -447,8 +447,10 @@ const DiveLog: React.FC = () => {
           const updatedData = { ...img.extractedData };
           if (field === "Name") {
             updatedData.Name = value;
-          } else if (field === "Balks") {
-            updatedData.Balks = parseInt(value) || 0;
+          } else if (field === "comment") {
+            updatedData.comment = value;
+          } else if (field === "rating") {
+            updatedData.rating = value;
           } else if (diveIndex !== undefined) {
             const dive = { ...updatedData.Dives[diveIndex] };
             if (repIndex !== undefined && field === "Reps") {
@@ -462,6 +464,8 @@ const DiveLog: React.FC = () => {
               dive.DiveCode = value;
             } else if (field === "DrillType") {
               dive.DrillType = value;
+            } else if (field === "Board") {
+              dive.Board = value;
             }
             updatedData.Dives = [...updatedData.Dives];
             updatedData.Dives[diveIndex] = dive;
@@ -515,7 +519,7 @@ const DiveLog: React.FC = () => {
       diverName: currentImage.extractedData.Name || "",
       date: new Date().toLocaleDateString(),
       totalDives: currentImage.extractedData.Dives?.length || 0,
-      balks: currentImage.extractedData.Balks || 0,
+      balks: 0, // Removed Balks from ConfirmedLog
       fileName:
         currentImage.file?.name ||
         currentImage.s3Key ||

@@ -53,7 +53,7 @@ export const SideNav: React.FC<SideNavProps> = ({
 
   return (
     <div
-      className={`hidden mb-4 md:flex md:flex-shrink-0 bg-white rounded-lg shadow-sm border border-gray-200 transition-all duration-300 ${
+      className={`hidden mb-4 lg:flex lg:flex-shrink-0 bg-white rounded-lg shadow-sm border border-gray-200 transition-all duration-300 ${
         isOpen ? "w-64" : "w-16"
       } flex-shrink-0 flex flex-col`}
     >

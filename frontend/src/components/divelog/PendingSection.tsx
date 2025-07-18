@@ -1,4 +1,5 @@
 import React from "react";
+import { MinimalLogCard } from "../common/ConfirmedLogCard";
 import { Check, Cloud, AlertTriangle } from "lucide-react";
 
 interface ImageData {
@@ -23,36 +24,30 @@ export const PendingSection: React.FC<PendingSectionProps> = ({
         {pendingImages.map((img) => (
           <div
             key={img.id}
-            className="w-32 h-32 bg-gray-100 rounded-lg flex items-center justify-center border-2 border-blue-200 relative flex-shrink-0"
+            className="w-40 min-w-[10rem] flex-shrink-0 relative"
           >
-            {img.url && (
-              <img
-                src={img.url}
-                alt="pending"
-                className="w-28 h-28 object-contain opacity-60"
-                onError={(e) => (e.currentTarget.style.display = "none")}
-              />
-            )}
-            <div className="absolute inset-0 flex items-center justify-center">
+            <MinimalLogCard log={{ url: img.url }} onClick={() => {}} />
+            {/* Overlay upload status animation */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               {img.uploadStatus === "pending" && (
-                <div className="text-blue-400 text-xs font-semibold animate-pulse">
+                <div className="text-blue-400 text-xs font-semibold animate-pulse bg-white bg-opacity-70 rounded px-2 py-1">
                   Queued...
                 </div>
               )}
               {img.uploadStatus === "uploading" && (
-                <div className="text-blue-600 text-xs font-semibold animate-pulse">
+                <div className="text-blue-600 text-xs font-semibold animate-pulse bg-white bg-opacity-70 rounded px-2 py-1 flex flex-col items-center">
                   <Cloud className="h-4 w-4 mx-auto mb-1" />
                   Uploading...
                 </div>
               )}
               {img.uploadStatus === "success" && (
-                <div className="text-green-600 text-xs font-semibold">
+                <div className="text-green-600 text-xs font-semibold bg-white bg-opacity-70 rounded px-2 py-1 flex flex-col items-center">
                   <Check className="h-4 w-4 mx-auto mb-1" />
                   Uploaded
                 </div>
               )}
               {img.uploadStatus === "error" && (
-                <div className="text-red-600 text-xs font-semibold">
+                <div className="text-red-600 text-xs font-semibold bg-white bg-opacity-70 rounded px-2 py-1 flex flex-col items-center">
                   <AlertTriangle className="h-4 w-4 mx-auto mb-1" />
                   Failed
                 </div>
