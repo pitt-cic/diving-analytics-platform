@@ -3,19 +3,7 @@ import { X, Edit2, Check, AlertTriangle, Download, Trash2 } from "lucide-react";
 import { PITT_DIVERS } from "../../constants/pittDivers";
 import Papa from "papaparse";
 import { useTable, Column, Row } from "react-table";
-
-interface DiveEntry {
-  DiveCode: string;
-  DrillType: string;
-  Reps: string[];
-  Success: string;
-}
-
-interface DiveData {
-  Name: string;
-  Balks: number;
-  Dives: DiveEntry[];
-}
+import type { DiveEntry, DiveData } from "../../types/index";
 
 interface ImageData {
   id: string;
@@ -74,6 +62,7 @@ const CSVTable: React.FC<CSVTableProps> = React.memo(
       const newDive: DiveEntry = {
         DiveCode: "",
         DrillType: "A", // Default to Approach
+        Board: "",
         Reps: [],
         Success: "",
       };
@@ -144,6 +133,34 @@ const CSVTable: React.FC<CSVTableProps> = React.memo(
                 {value}
               </span>
             );
+          },
+        },
+        {
+          Header: "Board",
+          accessor: "Board",
+          Cell: ({ value, row }: { value: any; row: Row<DiveEntry> }) => {
+            const [localBoard, setLocalBoard] = useState(value);
+            React.useEffect(() => {
+              setLocalBoard(value);
+            }, [value]);
+            if (isEditing) {
+              return (
+                <input
+                  value={localBoard}
+                  onChange={(e) => setLocalBoard(e.target.value)}
+                  onBlur={() => {
+                    const newData = [...data];
+                    newData[row.index] = {
+                      ...newData[row.index],
+                      Board: localBoard,
+                    };
+                    onDataChange(newData);
+                  }}
+                  className="w-full px-2 py-1 border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              );
+            }
+            return <span className="font-semibold">{value}</span>;
           },
         },
         {
@@ -298,6 +315,7 @@ const validateDives = (dives: DiveEntry[]) => {
     (dive) =>
       dive.DiveCode.trim() !== "" &&
       dive.DrillType.trim() !== "" &&
+      dive.Board.trim() !== "" &&
       /^\d+\s*\/\s*\d+$/.test(dive.Success.trim()) &&
       dive.Success.split("/")[0].trim() !== "" &&
       dive.Success.split("/")[1].trim() !== ""
@@ -467,21 +485,6 @@ const DiveLogModal: React.FC<DiveLogModalProps> = ({
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-4">
-                <label className="font-medium text-gray-700 w-16">Balks:</label>
-                {currentImage.isEditing ? (
-                  <input
-                    type="number"
-                    value={currentImage.extractedData.Balks}
-                    onChange={(e) => onDataEdit("Balks", e.target.value)}
-                    className="w-20 px-3 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                ) : (
-                  <span className="font-semibold">
-                    {currentImage.extractedData.Balks}
-                  </span>
-                )}
-              </div>
             </div>
             {/* Dives Table */}
             <div className="space-y-4">
@@ -504,6 +507,84 @@ const DiveLogModal: React.FC<DiveLogModalProps> = ({
                   onDataChange={stableTableDataChange}
                 />
               </div>
+            </div>
+            {/* Comment Box */}
+            <div className="space-y-2">
+              <label className="block font-medium text-gray-700">Comment</label>
+              {currentImage.isEditing ? (
+                <textarea
+                  value={currentImage.extractedData.comment || ""}
+                  onChange={(e) => onDataEdit("comment", e.target.value)}
+                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[60px]"
+                  placeholder="Add a comment about this training log..."
+                />
+              ) : (
+                <div className="bg-gray-50 rounded p-3 min-h-[60px] text-gray-700 whitespace-pre-line">
+                  {currentImage.extractedData.comment || (
+                    <span className="text-gray-400">No comment</span>
+                  )}
+                </div>
+              )}
+            </div>
+            {/* Rating Selector */}
+            <div className="space-y-2">
+              <label className="block font-medium text-gray-700">
+                Log Rating
+              </label>
+              {currentImage.isEditing ? (
+                <div className="flex gap-3">
+                  {["green", "yellow", "red"].map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => onDataEdit("rating", color)}
+                      className={`px-4 py-2 rounded font-semibold border-2 focus:outline-none transition-colors
+                        ${
+                          currentImage.extractedData.rating === color
+                            ? color === "green"
+                              ? "bg-green-500 text-white border-green-600"
+                              : color === "yellow"
+                              ? "bg-yellow-400 text-white border-yellow-500"
+                              : "bg-red-500 text-white border-red-600"
+                            : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+                        }
+                      `}
+                    >
+                      {color.charAt(0).toUpperCase() + color.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`inline-block w-4 h-4 rounded-full
+                      ${
+                        currentImage.extractedData.rating === "green"
+                          ? "bg-green-500"
+                          : ""
+                      }
+                      ${
+                        currentImage.extractedData.rating === "yellow"
+                          ? "bg-yellow-400"
+                          : ""
+                      }
+                      ${
+                        currentImage.extractedData.rating === "red"
+                          ? "bg-red-500"
+                          : ""
+                      }
+                    `}
+                  ></span>
+                  <span className="font-semibold">
+                    {currentImage.extractedData.rating
+                      ? currentImage.extractedData.rating
+                          .charAt(0)
+                          .toUpperCase() +
+                        currentImage.extractedData.rating.slice(1)
+                      : "Unrated"}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -616,10 +697,6 @@ const ConfirmedLogModal: React.FC<ConfirmedLogModalProps> = ({
                 <span className="font-semibold text-lg flex items-center gap-2">
                   {extracted.Name}
                 </span>
-              </div>
-              <div className="flex items-center gap-4">
-                <label className="font-medium text-gray-700 w-16">Balks:</label>
-                <span className="font-semibold">{extracted.Balks}</span>
               </div>
             </div>
             {/* Dives Table */}
