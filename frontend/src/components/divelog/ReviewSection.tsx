@@ -1,9 +1,11 @@
 import React from "react";
+import { MinimalLogCard } from "../common/ConfirmedLogCard";
 
 interface ImageData {
   id: string;
   file: File | undefined;
   url: string;
+  extractedData?: any;
 }
 
 interface ReviewSectionProps {
@@ -24,22 +26,12 @@ export const ReviewSection: React.FC<ReviewSectionProps> = ({
     {reviewImages.length > 0 ? (
       <div className="flex gap-4 flex-nowrap overflow-x-auto pb-2">
         {reviewImages.map((img, idx) => (
-          <button
-            key={img.id}
-            className={`w-32 h-32 bg-gray-100 rounded-lg border-2 ${
-              idx === currentImageIndex ? "border-blue-500" : "border-gray-200"
-            } flex flex-col items-center justify-center focus:outline-none flex-shrink-0`}
-            onClick={() => onOpenModal(idx)}
-          >
-            {img.url && (
-              <img
-                src={img.url}
-                alt="review"
-                className="w-28 h-28 object-contain"
-                onError={(e) => (e.currentTarget.style.display = "none")}
-              />
-            )}
-          </button>
+          <div key={img.id} className="w-40 min-w-[10rem] flex-shrink-0">
+            <MinimalLogCard
+              log={{ url: img.url }}
+              onClick={() => onOpenModal(idx)}
+            />
+          </div>
         ))}
       </div>
     ) : (
