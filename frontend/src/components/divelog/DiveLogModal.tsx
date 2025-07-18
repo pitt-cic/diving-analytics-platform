@@ -375,6 +375,8 @@ const DiveLogModal: React.FC<DiveLogModalProps> = ({
     document.body.removeChild(link);
   };
 
+  const isRatingValid = !!currentImage?.extractedData?.rating;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
       <div className="bg-white rounded-lg shadow-2xl max-w-5xl w-full mx-4 p-8 relative overflow-y-auto max-h-[95vh]">
@@ -430,7 +432,7 @@ const DiveLogModal: React.FC<DiveLogModalProps> = ({
                   style={{
                     display: currentImage.isEditing ? undefined : "none",
                   }}
-                  disabled={!isNameValid || !divesValid}
+                  disabled={!isNameValid || !divesValid || !isRatingValid}
                 >
                   <Check className="h-4 w-4" />
                   Save
@@ -440,7 +442,7 @@ const DiveLogModal: React.FC<DiveLogModalProps> = ({
                   <button
                     onClick={onAccept}
                     className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
-                    disabled={!isNameValid || !divesValid}
+                    disabled={!isNameValid || !divesValid || !isRatingValid}
                   >
                     <Check className="h-4 w-4" />
                     Accept
@@ -479,7 +481,7 @@ const DiveLogModal: React.FC<DiveLogModalProps> = ({
                         {currentImage.extractedData.Name}
                       </>
                     ) : (
-                      <span className="text-red-500 text-sm flex items-center gap-1">
+                      <span className="text-red-500 text-sm flex font-semibold items-center gap-1">
                         <AlertTriangle className="inline h-4 w-4" /> Needs edit
                       </span>
                     )}
@@ -517,36 +519,38 @@ const DiveLogModal: React.FC<DiveLogModalProps> = ({
                       </button>
                     ))}
                   </div>
-                ) : (
+                ) : currentImage.extractedData.rating ? (
                   <div className="flex items-center gap-2">
                     <span
                       className={`inline-block w-4 h-4 rounded-full
-                        ${
-                          currentImage.extractedData.rating === "green"
-                            ? "bg-green-500"
-                            : ""
-                        }
-                        ${
-                          currentImage.extractedData.rating === "yellow"
-                            ? "bg-yellow-400"
-                            : ""
-                        }
-                        ${
-                          currentImage.extractedData.rating === "red"
-                            ? "bg-red-500"
-                            : ""
-                        }
-                      `}
+                          ${
+                            currentImage.extractedData.rating === "green"
+                              ? "bg-green-500"
+                              : ""
+                          }
+                          ${
+                            currentImage.extractedData.rating === "yellow"
+                              ? "bg-yellow-400"
+                              : ""
+                          }
+                          ${
+                            currentImage.extractedData.rating === "red"
+                              ? "bg-red-500"
+                              : ""
+                          }
+                        `}
                     ></span>
                     <span className="font-semibold">
                       {currentImage.extractedData.rating
-                        ? currentImage.extractedData.rating
-                            .charAt(0)
-                            .toUpperCase() +
-                          currentImage.extractedData.rating.slice(1)
-                        : "Unrated"}
+                        .charAt(0)
+                        .toUpperCase() +
+                        currentImage.extractedData.rating.slice(1)}
                     </span>
                   </div>
+                ) : (
+                  <span className="text-red-500 text-sm flex font-semibold items-center gap-1">
+                    <AlertTriangle className="inline h-4 w-4" /> Needs edit
+                  </span>
                 )}
               </div>
             </div>

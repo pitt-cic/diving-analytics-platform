@@ -89,7 +89,7 @@ const generateMockData = (): DiveData => {
     Balks: Math.floor(Math.random() * 15),
     Dives: dives,
     comment: "",
-    rating: "green" as "green" | "yellow" | "red",
+    rating: undefined,
   };
 };
 
@@ -134,7 +134,7 @@ async function mapApiToImageDataWithSignedUrl(item: any): Promise<ImageData> {
     Balks: 0,
     Dives: [],
     comment: "",
-    rating: "green" as "green" | "yellow" | "red",
+    rating: undefined,
   };
   if (item.json_output) {
     try {
@@ -153,10 +153,7 @@ async function mapApiToImageDataWithSignedUrl(item: any): Promise<ImageData> {
           Success: d.success_rate || d.success || "",
         })),
         comment: parsed.comment || item.comment || "",
-        rating: (parsed.rating || item.rating || "green") as
-          | "green"
-          | "yellow"
-          | "red",
+        rating: parsed.rating || item.rating || undefined,
       };
     } catch (e) {
       // fallback to empty
@@ -183,7 +180,7 @@ function mapApiToConfirmedLog(
     Dives: [],
     Balks: 0,
     comment: "",
-    rating: "green" as "green" | "yellow" | "red",
+    rating: undefined,
   };
   if (item.json_output) {
     try {
@@ -206,10 +203,7 @@ function mapApiToConfirmedLog(
         Balks: parsed.Balks ?? parsed.balks ?? 0,
         Dives: parsed.Dives ?? parsed.dives ?? [],
         comment: parsed.comment || item.comment || "",
-        rating: (parsed.rating || item.rating || "green") as
-          | "green"
-          | "yellow"
-          | "red",
+        rating: parsed.rating || item.rating || undefined,
       };
     } catch (e) {
       console.error(
