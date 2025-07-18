@@ -4,6 +4,7 @@ import { PITT_DIVERS } from "../../constants/pittDivers";
 import Papa from "papaparse";
 import { useTable, Column, Row } from "react-table";
 import type { DiveEntry, DiveData } from "../../types/index";
+import { UserIcon } from "@heroicons/react/24/outline";
 
 interface ImageData {
   id: string;
@@ -448,8 +449,9 @@ const DiveLogModal: React.FC<DiveLogModalProps> = ({
               </div>
             </div>
             {/* Diver Info */}
-            <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-              <div className="space-y-2 mb-4">
+            <div className="space-y-4 mb-6">
+              {/* Diver Name */}
+              <div className="space-y-2">
                 <label className="block font-medium text-gray-700">
                   Diver Name
                 </label>
@@ -470,10 +472,14 @@ const DiveLogModal: React.FC<DiveLogModalProps> = ({
                     ))}
                   </select>
                 ) : (
-                  <div className="font-semibold text-lg flex items-center gap-2">
-                    {isNameValid ? currentImage.extractedData.Name : ""}
-                    {!isNameValid && (
-                      <span className="text-red-500 text-xs ml-2 flex items-center gap-1">
+                  <div className="flex items-center gap-1 font-semibold text-base text-gray-900">
+                    {isNameValid ? (
+                      <>
+                        <UserIcon className="h-5 w-5 text-gray-500" />
+                        {currentImage.extractedData.Name}
+                      </>
+                    ) : (
+                      <span className="text-red-500 text-sm flex items-center gap-1">
                         <AlertTriangle className="inline h-4 w-4" /> Needs edit
                       </span>
                     )}
@@ -483,7 +489,7 @@ const DiveLogModal: React.FC<DiveLogModalProps> = ({
                   <span className="text-red-500 text-xs mt-1">{nameError}</span>
                 )}
               </div>
-              {/* Rating Selector */}
+              {/* Log Rating */}
               <div className="space-y-2">
                 <label className="block font-medium text-gray-700">
                   Log Rating
@@ -544,6 +550,7 @@ const DiveLogModal: React.FC<DiveLogModalProps> = ({
                 )}
               </div>
             </div>
+            <hr className="my-4 border-gray-200" />
             {/* Dives Table */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
