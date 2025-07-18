@@ -71,6 +71,21 @@ export interface DiveCodeTrendData extends TrendData {
   difficulty: number;
 }
 
+export interface DiveEntry {
+  DiveCode: string;
+  DrillType: string;
+  Board: string;
+  Reps: string[];
+  Success: string;
+}
+
+export interface DiveData {
+  Name: string;
+  Dives: DiveEntry[];
+  comment?: string;
+  rating?: "green" | "yellow" | "red";
+}
+
 export interface DiverProfileProps {
   diver: Diver;
 }
