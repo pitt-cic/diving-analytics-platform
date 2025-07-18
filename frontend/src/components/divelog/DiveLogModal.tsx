@@ -102,6 +102,34 @@ const CSVTable: React.FC<CSVTableProps> = React.memo(
           },
         },
         {
+          Header: "Board",
+          accessor: "Board",
+          Cell: ({ value, row }: { value: any; row: Row<DiveEntry> }) => {
+            const [localBoard, setLocalBoard] = useState(value);
+            React.useEffect(() => {
+              setLocalBoard(value);
+            }, [value]);
+            if (isEditing) {
+              return (
+                <input
+                  value={localBoard}
+                  onChange={(e) => setLocalBoard(e.target.value)}
+                  onBlur={() => {
+                    const newData = [...data];
+                    newData[row.index] = {
+                      ...newData[row.index],
+                      Board: localBoard,
+                    };
+                    onDataChange(newData);
+                  }}
+                  className="w-full px-2 py-1 border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              );
+            }
+            return <span className="font-semibold">{value}</span>;
+          },
+        },
+        {
           Header: "Drill Type",
           accessor: "DrillType",
           Cell: ({ value, row }: { value: any; row: Row<DiveEntry> }) => {
@@ -133,34 +161,6 @@ const CSVTable: React.FC<CSVTableProps> = React.memo(
                 {value}
               </span>
             );
-          },
-        },
-        {
-          Header: "Board",
-          accessor: "Board",
-          Cell: ({ value, row }: { value: any; row: Row<DiveEntry> }) => {
-            const [localBoard, setLocalBoard] = useState(value);
-            React.useEffect(() => {
-              setLocalBoard(value);
-            }, [value]);
-            if (isEditing) {
-              return (
-                <input
-                  value={localBoard}
-                  onChange={(e) => setLocalBoard(e.target.value)}
-                  onBlur={() => {
-                    const newData = [...data];
-                    newData[row.index] = {
-                      ...newData[row.index],
-                      Board: localBoard,
-                    };
-                    onDataChange(newData);
-                  }}
-                  className="w-full px-2 py-1 border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              );
-            }
-            return <span className="font-semibold">{value}</span>;
           },
         },
         {
@@ -449,40 +449,98 @@ const DiveLogModal: React.FC<DiveLogModalProps> = ({
             </div>
             {/* Diver Info */}
             <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-              <div className="flex items-center gap-4">
-                <label className="font-medium text-gray-700 w-16">Name:</label>
+              <div className="space-y-2 mb-4">
+                <label className="block font-medium text-gray-700">
+                  Diver Name
+                </label>
                 {currentImage.isEditing ? (
-                  <div className="flex-1 flex flex-col">
-                    <select
-                      value={currentImage.extractedData.Name}
-                      onChange={(e) => onDataEdit("Name", e.target.value)}
-                      className={`flex-1 px-3 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        !isNameValid ? "border-red-500" : ""
-                      }`}
-                      required
-                    >
-                      <option value="">Select Diver</option>
-                      {PITT_DIVERS.map((diver) => (
-                        <option key={diver.id} value={diver.name}>
-                          {diver.name}
-                        </option>
-                      ))}
-                    </select>
-                    {!isNameValid && (
-                      <span className="text-red-500 text-xs mt-1">
-                        {nameError}
-                      </span>
-                    )}
-                  </div>
+                  <select
+                    value={currentImage.extractedData.Name}
+                    onChange={(e) => onDataEdit("Name", e.target.value)}
+                    className={`w-full px-3 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      !isNameValid ? "border-red-500" : ""
+                    }`}
+                    required
+                  >
+                    <option value="">Select Diver</option>
+                    {PITT_DIVERS.map((diver) => (
+                      <option key={diver.id} value={diver.name}>
+                        {diver.name}
+                      </option>
+                    ))}
+                  </select>
                 ) : (
-                  <span className="font-semibold text-lg flex items-center gap-2">
+                  <div className="font-semibold text-lg flex items-center gap-2">
                     {isNameValid ? currentImage.extractedData.Name : ""}
                     {!isNameValid && (
                       <span className="text-red-500 text-xs ml-2 flex items-center gap-1">
                         <AlertTriangle className="inline h-4 w-4" /> Needs edit
                       </span>
                     )}
-                  </span>
+                  </div>
+                )}
+                {!isNameValid && currentImage.isEditing && (
+                  <span className="text-red-500 text-xs mt-1">{nameError}</span>
+                )}
+              </div>
+              {/* Rating Selector */}
+              <div className="space-y-2">
+                <label className="block font-medium text-gray-700">
+                  Log Rating
+                </label>
+                {currentImage.isEditing ? (
+                  <div className="flex gap-3">
+                    {["green", "yellow", "red"].map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={() => onDataEdit("rating", color)}
+                        className={`px-4 py-2 rounded font-semibold border-2 focus:outline-none transition-colors
+                          ${
+                            currentImage.extractedData.rating === color
+                              ? color === "green"
+                                ? "bg-green-500 text-white border-green-600"
+                                : color === "yellow"
+                                ? "bg-yellow-400 text-white border-yellow-500"
+                                : "bg-red-500 text-white border-red-600"
+                              : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+                          }
+                        `}
+                      >
+                        {color.charAt(0).toUpperCase() + color.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`inline-block w-4 h-4 rounded-full
+                        ${
+                          currentImage.extractedData.rating === "green"
+                            ? "bg-green-500"
+                            : ""
+                        }
+                        ${
+                          currentImage.extractedData.rating === "yellow"
+                            ? "bg-yellow-400"
+                            : ""
+                        }
+                        ${
+                          currentImage.extractedData.rating === "red"
+                            ? "bg-red-500"
+                            : ""
+                        }
+                      `}
+                    ></span>
+                    <span className="font-semibold">
+                      {currentImage.extractedData.rating
+                        ? currentImage.extractedData.rating
+                            .charAt(0)
+                            .toUpperCase() +
+                          currentImage.extractedData.rating.slice(1)
+                        : "Unrated"}
+                    </span>
+                  </div>
                 )}
               </div>
             </div>
@@ -523,66 +581,6 @@ const DiveLogModal: React.FC<DiveLogModalProps> = ({
                   {currentImage.extractedData.comment || (
                     <span className="text-gray-400">No comment</span>
                   )}
-                </div>
-              )}
-            </div>
-            {/* Rating Selector */}
-            <div className="space-y-2">
-              <label className="block font-medium text-gray-700">
-                Log Rating
-              </label>
-              {currentImage.isEditing ? (
-                <div className="flex gap-3">
-                  {["green", "yellow", "red"].map((color) => (
-                    <button
-                      key={color}
-                      type="button"
-                      onClick={() => onDataEdit("rating", color)}
-                      className={`px-4 py-2 rounded font-semibold border-2 focus:outline-none transition-colors
-                        ${
-                          currentImage.extractedData.rating === color
-                            ? color === "green"
-                              ? "bg-green-500 text-white border-green-600"
-                              : color === "yellow"
-                              ? "bg-yellow-400 text-white border-yellow-500"
-                              : "bg-red-500 text-white border-red-600"
-                            : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
-                        }
-                      `}
-                    >
-                      {color.charAt(0).toUpperCase() + color.slice(1)}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`inline-block w-4 h-4 rounded-full
-                      ${
-                        currentImage.extractedData.rating === "green"
-                          ? "bg-green-500"
-                          : ""
-                      }
-                      ${
-                        currentImage.extractedData.rating === "yellow"
-                          ? "bg-yellow-400"
-                          : ""
-                      }
-                      ${
-                        currentImage.extractedData.rating === "red"
-                          ? "bg-red-500"
-                          : ""
-                      }
-                    `}
-                  ></span>
-                  <span className="font-semibold">
-                    {currentImage.extractedData.rating
-                      ? currentImage.extractedData.rating
-                          .charAt(0)
-                          .toUpperCase() +
-                        currentImage.extractedData.rating.slice(1)
-                      : "Unrated"}
-                  </span>
                 </div>
               )}
             </div>
