@@ -153,10 +153,10 @@ def update_record_with_results(record_id, json_output, extracted_csv):
 
 def update_record_status(record_id, status, error_message=None):
     try:
-        update_expression = "SET extraction_status = :status, updated_at = :updated_at"
+        update_expression = "SET extraction_status = :status, json_output = :json_output, updated_at = :updated_at"
         expression_attribute_values = {
             ':status': status,
-            ':json_output': json.dumps({}),
+            ':json_output': json.dumps({"dives": []}),
             ':updated_at': datetime.now(timezone.utc).isoformat()
         }
 
