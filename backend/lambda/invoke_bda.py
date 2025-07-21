@@ -152,13 +152,11 @@ def update_record_with_results(record_id, json_output, extracted_csv):
 
 
 def update_record_status(record_id, status, error_message=None):
-    """
-    Update record status (used for error handling)
-    """
     try:
         update_expression = "SET extraction_status = :status, updated_at = :updated_at"
         expression_attribute_values = {
             ':status': status,
+            ':json_output': json.dumps({}),
             ':updated_at': datetime.now(timezone.utc).isoformat()
         }
 
@@ -271,7 +269,7 @@ def handler(event, context):
             logger.error(error_message)
             import traceback
             traceback.print_exc()
-            update_record_status(record_id, STATUS_FAILED, error_message)
+            update_record_status(record_id, STATUS_PENDING_REVIEW, error_message)
 
 
 def extract_elements_from_result(result_data):
