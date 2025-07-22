@@ -323,6 +323,43 @@ const validateDives = (dives: DiveEntry[]) => {
   );
 };
 
+function BalksInput({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (val: number) => void;
+}) {
+  const [localBalks, setLocalBalks] = React.useState(String(value ?? 0));
+  React.useEffect(() => {
+    setLocalBalks(String(value ?? 0));
+  }, [value]);
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      value={localBalks}
+      onChange={(e) => {
+        const val = e.target.value;
+        if (/^\d*$/.test(val)) {
+          setLocalBalks(val);
+          if (val !== "") {
+            onChange(Number(val));
+          }
+        }
+      }}
+      onBlur={(e) => {
+        if (e.target.value === "") {
+          setLocalBalks("0");
+          onChange(0);
+        }
+      }}
+      className="w-24 px-3 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+    />
+  );
+}
+
 const DiveLogModal: React.FC<DiveLogModalProps> = ({
   isOpen,
   image,
@@ -352,12 +389,29 @@ const DiveLogModal: React.FC<DiveLogModalProps> = ({
 
   // Download CSV function
   const downloadCSV = () => {
-    const csvData = currentImage.extractedData.Dives.map((dive) => ({
-      "Dive Code": dive.DiveCode,
-      "Drill Type": dive.DrillType,
-      "Success Rate": dive.Success,
-    }));
-
+    const name = currentImage.extractedData.Name || "";
+    const comment = currentImage.extractedData.comment || "";
+    const rating = currentImage.extractedData.rating || "";
+    const csvData = currentImage.extractedData.Dives.map((dive) => {
+      let successRate = dive.Success;
+      if (typeof successRate === "string" && successRate.includes("/")) {
+        const [num, den] = successRate
+          .split("/")
+          .map((s) => parseFloat(s.trim()));
+        if (!isNaN(num) && !isNaN(den) && den > 0) {
+          successRate = Math.round((num / den) * 100) + "%";
+        }
+      }
+      return {
+        "Diver Name": name,
+        "Log Rating": rating,
+        Balks: currentImage.extractedData.balks ?? 0,
+        Comment: comment,
+        "Dive Code": dive.DiveCode,
+        "Drill Type": dive.DrillType,
+        "Success Rate": successRate,
+      };
+    });
     const csv = Papa.unparse(csvData);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
@@ -553,6 +607,20 @@ const DiveLogModal: React.FC<DiveLogModalProps> = ({
                   </span>
                 )}
               </div>
+              {/* Baulk (Balks) Field */}
+              <div className="space-y-2">
+                <label className="block font-medium text-gray-700">Balks</label>
+                {currentImage.isEditing ? (
+                  <BalksInput
+                    value={currentImage.extractedData.balks ?? 0}
+                    onChange={(val) => onDataEdit("balks", val)}
+                  />
+                ) : (
+                  <div className="font-semibold text-base text-gray-900">
+                    {currentImage.extractedData.balks ?? 0}
+                  </div>
+                )}
+              </div>
             </div>
             <hr className="my-4 border-gray-200" />
             {/* Dives Table */}
@@ -637,12 +705,43 @@ const ConfirmedLogModal: React.FC<ConfirmedLogModalProps> = ({
 
   // Download CSV function (same as DiveLogModal)
   const downloadCSV = () => {
-    const csvData = (extracted.Dives || []).map((dive) => ({
-      "Dive Code": dive.DiveCode,
-      "Drill Type": dive.DrillType,
-      Board: dive.Board,
-      "Success Rate": dive.Success,
-    }));
+    const name = extracted.Name || "";
+    const comment = extracted.comment || "";
+    const rating = extracted.rating || "";
+    const csvData = (extracted.Dives || []).map((dive) => {
+      let successRate = dive.Success;
+      if (typeof successRate === "string" && successRate.includes("/")) {
+        const [num, den] = successRate
+          .split("/")
+          .map((s) => parseFloat(s.trim()));
+        if (!isNaN(num) && !isNaN(den) && den > 0) {
+          successRate = Math.round((num / den) * 100) + "%";
+        }
+      }
+      // Type guard for balks
+      let balksValue = 0;
+      if (
+        "balks" in extracted &&
+        typeof (extracted as any).balks === "number"
+      ) {
+        balksValue = (extracted as any).balks;
+      } else if (
+        "Balks" in extracted &&
+        typeof (extracted as any).Balks === "number"
+      ) {
+        balksValue = (extracted as any).Balks;
+      }
+      return {
+        "Diver Name": name,
+        "Log Rating": rating,
+        Balks: balksValue,
+        Comment: comment,
+        "Dive Code": dive.DiveCode,
+        "Drill Type": dive.DrillType,
+        Board: dive.Board,
+        "Success Rate": successRate,
+      };
+    });
     const csv = Papa.unparse(csvData);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");

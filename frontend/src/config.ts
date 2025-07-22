@@ -1,5 +1,5 @@
 /**
- * Configuration for the DiveGenie application
+ * Configuration for the DiveTracker application
  */
 export const config = {
   // API Configuration
@@ -20,7 +20,8 @@ export const config = {
     graphqlApiUrl:
       process.env.REACT_APP_GRAPHQL_API_URL || "https://example.com/graphql",
     graphqlApiKey: process.env.REACT_APP_GRAPHQL_API_KEY || "example-key",
-    mediaBucket: process.env.REACT_APP_MEDIA_BUCKET || "divegenie-media-bucket",
+    mediaBucket:
+      process.env.REACT_APP_MEDIA_BUCKET || "divetracker-media-bucket",
   },
 
   // Natural Language Processing Configuration

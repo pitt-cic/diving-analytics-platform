@@ -305,6 +305,7 @@ export const TrainingProfile: React.FC<TrainingProfileProps> = ({
                   setSelectedLogIndex(idx);
                   setModalOpen(true);
                 }}
+                subtitleMode="dives"
               />
             ))}
           </div>
