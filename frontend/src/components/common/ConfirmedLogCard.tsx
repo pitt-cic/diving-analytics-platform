@@ -3,7 +3,8 @@ import React from "react";
 const ConfirmedLogCard: React.FC<{
   log: any;
   onClick: () => void;
-}> = ({ log, onClick }) => {
+  subtitleMode?: "diver" | "dives";
+}> = ({ log, onClick, subtitleMode = "diver" }) => {
   const dateStr = log.date || "Unknown date";
   const dives = log.totalDives || 0;
   return (
@@ -28,9 +29,16 @@ const ConfirmedLogCard: React.FC<{
         <span className="text-white text-lg font-bold drop-shadow">
           {dateStr}
         </span>
-        <span className="text-white text-sm font-medium drop-shadow">
-          {dives} {dives === 1 ? "dive" : "dives"}
-        </span>
+        {subtitleMode === "diver" && log.diverName && (
+          <span className="text-white text-xs font-medium drop-shadow">
+            {log.diverName}
+          </span>
+        )}
+        {subtitleMode === "dives" && (
+          <span className="text-white text-xs font-medium drop-shadow">
+            {dives} {dives === 1 ? "dive" : "dives"}
+          </span>
+        )}
       </div>
     </button>
   );

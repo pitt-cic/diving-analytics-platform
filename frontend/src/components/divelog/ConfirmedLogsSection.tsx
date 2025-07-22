@@ -32,7 +32,11 @@ export const ConfirmedLogsSection: React.FC<ConfirmedLogsSectionProps> = ({
       <div className="flex gap-4 flex-nowrap overflow-x-auto pb-2">
         {confirmedLogs.map((log, idx) => (
           <div key={log.id} className="w-40 min-w-[10rem] flex-shrink-0">
-            <ConfirmedLogCard log={log} onClick={() => onOpenModal(idx)} />
+            <ConfirmedLogCard
+              log={log}
+              onClick={() => onOpenModal(idx)}
+              subtitleMode="diver"
+            />
           </div>
         ))}
       </div>

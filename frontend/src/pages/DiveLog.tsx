@@ -89,6 +89,7 @@ const generateMockData = (): DiveData => {
     Dives: dives,
     comment: "",
     rating: undefined,
+    balks: 0,
   };
 };
 
@@ -133,6 +134,7 @@ async function mapApiToImageDataWithSignedUrl(item: any): Promise<ImageData> {
     Dives: [],
     comment: "",
     rating: undefined,
+    balks: item.balks ?? 0,
   };
   if (item.json_output) {
     try {
@@ -151,6 +153,7 @@ async function mapApiToImageDataWithSignedUrl(item: any): Promise<ImageData> {
         })),
         comment: parsed.comment || item.comment || "",
         rating: parsed.rating || item.rating || undefined,
+        balks: parsed.balks ?? item.balks ?? 0,
       };
     } catch (e) {
       // fallback to empty
@@ -177,6 +180,7 @@ function mapApiToConfirmedLog(
     Dives: [],
     comment: "",
     rating: undefined,
+    balks: 0,
   };
   if (item.json_output) {
     try {
@@ -199,6 +203,7 @@ function mapApiToConfirmedLog(
         Dives: parsed.Dives ?? parsed.dives ?? [],
         comment: parsed.comment || item.comment || "",
         rating: parsed.rating || item.rating || undefined,
+        balks: parsed.balks ?? item.balks ?? 0,
       };
     } catch (e) {
       console.error(
@@ -451,6 +456,8 @@ const DiveLog: React.FC = () => {
             updatedData.comment = value;
           } else if (field === "rating") {
             updatedData.rating = value;
+          } else if (field === "balks") {
+            updatedData.balks = value;
           } else if (diveIndex !== undefined) {
             const dive = { ...updatedData.Dives[diveIndex] };
             if (repIndex !== undefined && field === "Reps") {
