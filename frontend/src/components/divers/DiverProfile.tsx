@@ -48,13 +48,19 @@ export const DiverProfile: React.FC<DiverProfileProps> = ({ diver }) => {
   const [activeTab, setActiveTab] = useState<"competition" | "training">(
     "competition"
   );
+  
+  // Filter states for dive code performance
+  const [selectedDiveCodes, setSelectedDiveCodes] = useState<string[]>([]);
+  const [selectedBoards, setSelectedBoards] = useState<string[]>([]);
 
   // Cast diver to include training data
   const diverWithTraining = diver as DiverWithTraining;
 
-  // Reset selectedDiveCode when diver changes
+  // Reset selectedDiveCode and filters when diver changes
   useEffect(() => {
     setSelectedDiveCode(null);
+    setSelectedDiveCodes([]);
+    setSelectedBoards([]);
   }, [diver.name]);
 
   const diverStats: DiverStats = useMemo(() => {
@@ -182,44 +188,128 @@ export const DiverProfile: React.FC<DiverProfileProps> = ({ diver }) => {
 
   const diveCodeData = useMemo(() => {
     const codeStats = diver.results
-      .flatMap((result) => result.dives)
+      .flatMap((result) => {
+        // Extract board level from event_name or height field in dives
+        return result.dives.map(dive => {
+          // First try to get board from the height field if available
+          let board = dive.height ? dive.height.toLowerCase() : null;
+          
+          // If height is not available, try to extract from event_name
+          if (!board) {
+            const boardMatch = result.event_name.match(/(1m|3m|5m|10m|platform)/i);
+            board = boardMatch ? boardMatch[0].toLowerCase() : 'unknown';
+          }
+          
+          return {
+            ...dive,
+            board,
+            // Create a unique identifier that includes both code and board
+            uniqueId: `${dive.code}-${board}`
+          };
+        });
+      })
       .reduce((acc, dive) => {
-        if (!acc[dive.code]) {
-          acc[dive.code] = {
+        // Use uniqueId as the key
+        const key = dive.uniqueId;
+        if (!acc[key]) {
+          acc[key] = {
             total: 0,
             count: 0,
             description: dive.description,
+            code: dive.code,
+            board: dive.board,
+            difficulty: dive.difficulty
           };
         }
-        acc[dive.code].total += dive.award;
-        acc[dive.code].count += 1;
+        acc[key].total += dive.award;
+        acc[key].count += 1;
         return acc;
-      }, {} as Record<string, { total: number; count: number; description: string }>);
+      }, {} as Record<string, { total: number; count: number; description: string; code: string; board: string; difficulty: number }>);
 
     return Object.entries(codeStats)
-      .map(([code, stats]) => ({
-        code,
+      .map(([key, stats]) => ({
+        key,
+        code: stats.code,
+        board: stats.board,
         average: parseFloat((stats.total / stats.count).toFixed(1)),
         count: stats.count,
         description: stats.description,
+        difficulty: stats.difficulty,
+        displayCode: `${stats.code} (${stats.board})`
       }))
       .sort((a, b) => b.average - a.average);
   }, [diver]);
+
+  // Get available dive codes and boards for filter options
+  const availableDiveCodes = useMemo(() => {
+    const codes = Array.from(new Set(diveCodeData.map(item => item.code)));
+    return codes.sort();
+  }, [diveCodeData]);
+
+  const availableBoards = useMemo(() => {
+    const boards = Array.from(new Set(diveCodeData.map(item => item.board)));
+    return boards.sort();
+  }, [diveCodeData]);
+
+  // Filter dive code data based on selected filters
+  const filteredDiveCodeData = useMemo(() => {
+    let filtered = diveCodeData;
+
+    // Filter by dive codes if any are selected
+    if (selectedDiveCodes.length > 0) {
+      filtered = filtered.filter(item => selectedDiveCodes.includes(item.code));
+    }
+
+    // Filter by boards if any are selected
+    if (selectedBoards.length > 0) {
+      filtered = filtered.filter(item => selectedBoards.includes(item.board));
+    }
+
+    return filtered;
+  }, [diveCodeData, selectedDiveCodes, selectedBoards]);
+
+  // Filter handlers
+  const handleApplyFilters = () => {
+    // Filters are applied automatically through useMemo, but this can be used for additional logic if needed
+  };
+
+  const handleClearFilters = () => {
+    setSelectedDiveCodes([]);
+    setSelectedBoards([]);
+  };
 
   // for dive code bar chart
   const selectedDiveCodeTrendData: DiveCodeTrendData[] = useMemo(() => {
     if (!selectedDiveCode) return [];
 
+    // Extract code and board from the selectedDiveCode
+    const [code, board] = selectedDiveCode.split('-');
+
     const divesForCode = diver.results
-      .flatMap((result) =>
-        result.dives
-          .filter((dive) => dive.code === selectedDiveCode)
+      .flatMap((result) => {
+        // Only include dives that match both code and board
+        return result.dives
+          .filter((dive) => {
+            if (dive.code !== code) return false;
+            
+            // Check if the dive's board matches
+            // First try to get board from the height field if available
+            let diveBoard = dive.height ? dive.height.toLowerCase() : null;
+            
+            // If height is not available, try to extract from event_name
+            if (!diveBoard) {
+              const boardMatch = result.event_name.match(/(1m|3m|5m|10m|platform)/i);
+              diveBoard = boardMatch ? boardMatch[0].toLowerCase() : 'unknown';
+            }
+            
+            return diveBoard === board;
+          })
           .map((dive) => ({
             ...dive,
             date: result.start_date || result.date || "",
             competition: result.meet_name,
-          }))
-      )
+          }));
+      })
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     return divesForCode.map((dive) => ({
@@ -229,12 +319,6 @@ export const DiverProfile: React.FC<DiverProfileProps> = ({ diver }) => {
       difficulty: dive.difficulty,
     }));
   }, [diver, selectedDiveCode]);
-
-  // const handleBarClick = (data: any, index: number) => {
-  //   if (data && data.code) {
-  //     setSelectedDiveCode(data.code);
-  //   }
-  // };
 
   const handleBackClick = () => {
     setSelectedDiveCode(null);
@@ -355,11 +439,20 @@ export const DiverProfile: React.FC<DiverProfileProps> = ({ diver }) => {
           diver={diver}
           diverStats={diverStats}
           trendData={trendData}
-          diveCodeData={diveCodeData}
+          diveCodeData={filteredDiveCodeData}
           selectedDiveCode={selectedDiveCode}
           setSelectedDiveCode={setSelectedDiveCode}
           selectedDiveCodeTrendData={selectedDiveCodeTrendData}
           handleBackClick={handleBackClick}
+          // Filter props
+          availableDiveCodes={availableDiveCodes}
+          availableBoards={availableBoards}
+          selectedDiveCodes={selectedDiveCodes}
+          selectedBoards={selectedBoards}
+          onDiveCodesChange={setSelectedDiveCodes}
+          onBoardsChange={setSelectedBoards}
+          onApplyFilters={handleApplyFilters}
+          onClearFilters={handleClearFilters}
         />
       ) : (
         <TrainingProfile

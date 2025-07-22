@@ -5,6 +5,7 @@ export interface CompetitionDive {
   award: number;
   round_place: number;
   scores: (number | null)[];
+  board?: string; // Added to store the board level (1m, 3m, 5m, etc.)
 }
 
 export interface CompetitionResult {
