@@ -101,6 +101,12 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         update_expression_parts.append('json_output = :updated_json')
         expression_attribute_values[':updated_json'] = json.dumps(updated_json)
 
+        # ADD session date
+        if 'session_date' in body or body['session_date'] is not None:
+            update_expression_parts.append('#session_date = :session_date')
+            expression_attribute_names['#session_date'] = 'session_date'
+            expression_attribute_values[':session_date'] = body['session_date']
+
         # Add updated timestamp
         update_expression_parts.append('updated_at = :updated_at')
         expression_attribute_values[':updated_at'] = datetime.now(timezone.utc).isoformat()

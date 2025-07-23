@@ -28,7 +28,6 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
     public readonly getTrainingDataByStatusFunction: lambda.Function;
     public readonly updateTrainingDataFunction: lambda.Function;
     public readonly deleteTrainingDataFunction: lambda.Function;
-    public readonly boto3Layer: lambda.LayerVersion;
 
     constructor(scope: Construct, id: string, props?: cdk.StackProps) {
         super(scope, id, props);
@@ -114,12 +113,6 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
             tags: [],
         });
 
-        // Create a boto3 layer with a specific version
-        this.boto3Layer = new lambda.LayerVersion(this, 'Boto3Layer', {
-            code: lambda.Code.fromAsset('layers/boto3-layer'),
-            compatibleRuntimes: [lambda.Runtime.PYTHON_3_13],
-            description: 'Boto3 1.38.41 layer',
-        });
 
         // Table 1: Divers - Store diver profile information
         this.diversTable = new dynamodb.Table(this, 'DiversTable', {
@@ -183,10 +176,17 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
         });
 
         this.invokeBdaFunction = new lambda.Function(this, 'InvokeBdaFunction', {
-            runtime: lambda.Runtime.PYTHON_3_13,
+            runtime: lambda.Runtime.PYTHON_3_12,
             handler: 'invoke_bda.handler',
-            code: lambda.Code.fromAsset('lambda'),
-            layers: [this.boto3Layer],
+            code: lambda.Code.fromAsset('lambda', {
+                bundling: {
+                    image: lambda.Runtime.PYTHON_3_12.bundlingImage,
+                    command: [
+                        'bash', '-c',
+                        'pip install -r requirements.txt -t /asset-output && cp -au . /asset-output'
+                    ]
+                }
+            }),
             timeout: cdk.Duration.minutes(5),
             environment: {
                 DATA_AUTOMATION_PROJECT_ARN: this.dataAutomationProject.attrProjectArn,
@@ -239,10 +239,17 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
 
         // Create API Lambda functions
         this.getAllDiversFunction = new lambda.Function(this, 'GetAllDiversFunction', {
-            runtime: lambda.Runtime.PYTHON_3_13,
+            runtime: lambda.Runtime.PYTHON_3_12,
             handler: 'get_all_divers.handler',
-            code: lambda.Code.fromAsset('lambda'),
-            layers: [this.boto3Layer],
+            code: lambda.Code.fromAsset('lambda', {
+                bundling: {
+                    image: lambda.Runtime.PYTHON_3_12.bundlingImage,
+                    command: [
+                        'bash', '-c',
+                        'pip install -r requirements.txt -t /asset-output && cp -au . /asset-output'
+                    ]
+                }
+            }),
             timeout: cdk.Duration.seconds(30),
             environment: {
                 DIVERS_TABLE_NAME: this.diversTable.tableName
@@ -250,10 +257,17 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
         });
 
         this.getDiverProfileFunction = new lambda.Function(this, 'GetDiverProfileFunction', {
-            runtime: lambda.Runtime.PYTHON_3_13,
+            runtime: lambda.Runtime.PYTHON_3_12,
             handler: 'get_diver_profile.handler',
-            code: lambda.Code.fromAsset('lambda'),
-            layers: [this.boto3Layer],
+            code: lambda.Code.fromAsset('lambda', {
+                bundling: {
+                    image: lambda.Runtime.PYTHON_3_12.bundlingImage,
+                    command: [
+                        'bash', '-c',
+                        'pip install -r requirements.txt -t /asset-output && cp -au . /asset-output'
+                    ]
+                }
+            }),
             timeout: cdk.Duration.minutes(15),
             memorySize: 1024,
             environment: {
@@ -265,10 +279,17 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
         });
 
         this.getDiverTrainingFunction = new lambda.Function(this, 'GetDiverTrainingFunction', {
-            runtime: lambda.Runtime.PYTHON_3_13,
+            runtime: lambda.Runtime.PYTHON_3_12,
             handler: 'get_diver_training.handler',
-            code: lambda.Code.fromAsset('lambda'),
-            layers: [this.boto3Layer],
+            code: lambda.Code.fromAsset('lambda', {
+                bundling: {
+                    image: lambda.Runtime.PYTHON_3_12.bundlingImage,
+                    command: [
+                        'bash', '-c',
+                        'pip install -r requirements.txt -t /asset-output && cp -au . /asset-output'
+                    ]
+                }
+            }),
             timeout: cdk.Duration.seconds(30),
             environment: {
                 DIVERS_TABLE_NAME: this.diversTable.tableName,
@@ -278,10 +299,17 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
         });
 
         this.getTrainingPhotoFunction = new lambda.Function(this, 'GetTrainingPhotoFunction', {
-            runtime: lambda.Runtime.PYTHON_3_13,
+            runtime: lambda.Runtime.PYTHON_3_12,
             handler: 'get_training_photo.handler',
-            code: lambda.Code.fromAsset('lambda'),
-            layers: [this.boto3Layer],
+            code: lambda.Code.fromAsset('lambda', {
+                bundling: {
+                    image: lambda.Runtime.PYTHON_3_12.bundlingImage,
+                    command: [
+                        'bash', '-c',
+                        'pip install -r requirements.txt -t /asset-output && cp -au . /asset-output'
+                    ]
+                }
+            }),
             timeout: cdk.Duration.seconds(30),
             environment: {
                 OUTPUT_BUCKET_NAME: this.outputBucket.bucketName
@@ -289,10 +317,17 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
         });
         // Import Competition Data Lambda Function
         this.importCompetitionDataFunction = new lambda.Function(this, 'ImportCompetitionDataFunction', {
-            runtime: lambda.Runtime.PYTHON_3_13,
+            runtime: lambda.Runtime.PYTHON_3_12,
             handler: 'import_competition_data.handler',
-            code: lambda.Code.fromAsset('lambda'),
-            layers: [this.boto3Layer],
+            code: lambda.Code.fromAsset('lambda', {
+                bundling: {
+                    image: lambda.Runtime.PYTHON_3_12.bundlingImage,
+                    command: [
+                        'bash', '-c',
+                        'pip install -r requirements.txt -t /asset-output && cp -au . /asset-output'
+                    ]
+                }
+            }),
             timeout: cdk.Duration.minutes(15),
             memorySize: 1024,
             environment: {
@@ -304,10 +339,17 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
         });
         // Get Training Data by Status Lambda Function
         this.getTrainingDataByStatusFunction = new lambda.Function(this, 'GetTrainingDataByStatusFunction', {
-            runtime: lambda.Runtime.PYTHON_3_13,
+            runtime: lambda.Runtime.PYTHON_3_12,
             handler: 'get_training_data_by_status.handler',
-            code: lambda.Code.fromAsset('lambda'),
-            layers: [this.boto3Layer],
+            code: lambda.Code.fromAsset('lambda', {
+                bundling: {
+                    image: lambda.Runtime.PYTHON_3_12.bundlingImage,
+                    command: [
+                        'bash', '-c',
+                        'pip install -r requirements.txt -t /asset-output && cp -au . /asset-output'
+                    ]
+                }
+            }),
             timeout: cdk.Duration.seconds(30),
             memorySize: 512,
             environment: {
@@ -316,10 +358,17 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
         });
 
         this.updateTrainingDataFunction = new lambda.Function(this, 'UpdateTrainingDataFunction', {
-            runtime: lambda.Runtime.PYTHON_3_13,
+            runtime: lambda.Runtime.PYTHON_3_12,
             handler: 'update_training_data.handler',
-            code: lambda.Code.fromAsset('lambda'),
-            layers: [this.boto3Layer],
+            code: lambda.Code.fromAsset('lambda', {
+                bundling: {
+                    image: lambda.Runtime.PYTHON_3_12.bundlingImage,
+                    command: [
+                        'bash', '-c',
+                        'pip install -r requirements.txt -t /asset-output && cp -au . /asset-output'
+                    ]
+                }
+            }),
             timeout: cdk.Duration.seconds(30),
             memorySize: 512,
             environment: {
@@ -327,16 +376,24 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
             }
         });
         this.deleteTrainingDataFunction = new lambda.Function(this, 'DeleteTrainingDataFunction', {
-            runtime: lambda.Runtime.PYTHON_3_13,
+            runtime: lambda.Runtime.PYTHON_3_12,
             handler: 'delete_training_data.handler',
-            code: lambda.Code.fromAsset('lambda'),
-            layers: [this.boto3Layer],
+            code: lambda.Code.fromAsset('lambda', {
+                bundling: {
+                    image: lambda.Runtime.PYTHON_3_12.bundlingImage,
+                    command: [
+                        'bash', '-c',
+                        'pip install -r requirements.txt -t /asset-output && cp -au . /asset-output'
+                    ]
+                }
+            }),
             timeout: cdk.Duration.seconds(30),
             memorySize: 512,
             environment: {
                 TRAINING_DATA_TABLE_NAME: trainingDataTable.tableName
             }
-        });        this.outputBucket.grantRead(this.getTrainingPhotoFunction);
+        });
+        this.outputBucket.grantRead(this.getTrainingPhotoFunction);
 
         this.diversTable.grantReadData(this.getAllDiversFunction);
         this.diversTable.grantReadData(this.getDiverProfileFunction);

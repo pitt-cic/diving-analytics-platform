@@ -66,6 +66,7 @@ def create_initial_record(record_id, s3_url, diver_name=None):
             'id': record_id,
             'extraction_status': STATUS_PROCESSING,
             'created_at': datetime.now(timezone.utc).isoformat(),
+            'session_date': datetime.now(timezone.utc).date().isoformat(),
             's3_url': s3_url
         }
 

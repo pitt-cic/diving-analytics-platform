@@ -1,4 +1,6 @@
 import json
+import random
+import time
 from venv import logger
 
 import boto3
@@ -118,13 +120,25 @@ def get_json_from_bedrock(elements, names_of_divers, sheet_type):
     request = build_bedrock_payload(prompt)
     bedrock_model = "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
     sanitized_response = ""
-    try:
-        response = bedrock_client.invoke_model(modelId=bedrock_model, body=request)
-        model_response = json.loads(response["body"].read())
-        response_text = model_response["content"][0]["text"]
-        sanitized_response = sanitize_response(response_text)
-    except Exception as e:
-        logger.error(f"ERROR: Can't invoke '{bedrock_model}'. Reason: {e}")
+    max_retries = 10
+    retry_count = 0
+
+    while retry_count < max_retries:
+        try:
+            response = bedrock_client.invoke_model(modelId=bedrock_model, body=request)
+            model_response = json.loads(response["body"].read())
+            response_text = model_response["content"][0]["text"]
+            sanitized_response = sanitize_response(response_text)
+            break
+        except Exception as e:
+            retry_count += 1
+            if retry_count >= max_retries:
+                logger.error(f"ERROR: Can't invoke '{bedrock_model}' after {max_retries} attempts. Final error: {e}")
+            else:
+                delay = min(2 ** retry_count + random.uniform(0, 1), 60)
+                logger.warning(f"Attempt {retry_count}/{max_retries} failed: {e}. Retrying in {delay:.2f} seconds...")
+                time.sleep(delay)
+
     return sanitized_response
 
 
