@@ -18,6 +18,7 @@ import {
   DiveLogModal,
 } from "../components/divelog/DiveLogModal";
 import type { DiveEntry, DiveData } from "../types/index";
+import deleteTrainingData from "../services/deleteTrainingData";
 
 // Types
 interface ImageData {
@@ -30,6 +31,9 @@ interface ImageData {
   s3Url?: string;
   uploadStatus?: "pending" | "uploading" | "success" | "error";
   uploadError?: string;
+  session_date?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface ConfirmedLog {
@@ -41,6 +45,9 @@ interface ConfirmedLog {
   fileName: string;
   s3Key?: string;
   s3Url?: string;
+  session_date?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // Mock data generator
@@ -168,6 +175,9 @@ async function mapApiToImageDataWithSignedUrl(item: any): Promise<ImageData> {
     s3Key: s3Key || undefined,
     s3Url: item.s3_url,
     uploadStatus: "success",
+    session_date: item.session_date || undefined,
+    createdAt: item.created_at || undefined,
+    updatedAt: item.updated_at || undefined,
   };
 }
 
@@ -222,6 +232,9 @@ function mapApiToConfirmedLog(
     fileName: item.s3_key || item.s3_url || item.id,
     s3Key: item.s3_key,
     s3Url: item.s3_url,
+    session_date: item.session_date || undefined,
+    createdAt: item.created_at || undefined,
+    updatedAt: item.updated_at || undefined,
     extractedData, // <-- add this!
   };
 }
@@ -450,6 +463,7 @@ const DiveLog: React.FC = () => {
       prev.map((img, idx) => {
         if (idx === currentImageIndex) {
           const updatedData = { ...img.extractedData };
+          let updatedImg = { ...img };
           if (field === "Name") {
             updatedData.Name = value;
           } else if (field === "comment") {
@@ -458,6 +472,8 @@ const DiveLog: React.FC = () => {
             updatedData.rating = value;
           } else if (field === "balks") {
             updatedData.balks = value;
+          } else if (field === "session_date") {
+            updatedImg.session_date = value;
           } else if (diveIndex !== undefined) {
             const dive = { ...updatedData.Dives[diveIndex] };
             if (repIndex !== undefined && field === "Reps") {
@@ -477,7 +493,7 @@ const DiveLog: React.FC = () => {
             updatedData.Dives = [...updatedData.Dives];
             updatedData.Dives[diveIndex] = dive;
           }
-          return { ...img, extractedData: updatedData };
+          return { ...updatedImg, extractedData: updatedData };
         }
         return img;
       })
@@ -563,12 +579,15 @@ const DiveLog: React.FC = () => {
     const diverName = img.extractedData.Name;
     const diverObj = PITT_DIVERS.find((d) => d.name === diverName);
     const diverId = diverObj ? diverObj.id : "";
-    const payload = {
+    const payload: any = {
       name: diverName,
       training_data_id: img.id,
       diver_id: diverId,
       updated_json: img.extractedData,
     };
+    if (img.session_date) {
+      payload.session_date = img.session_date;
+    }
     console.log("[DEBUG] Payload to updateTrainingData:", payload);
     try {
       const response = await updateTrainingData(payload);
@@ -590,6 +609,28 @@ const DiveLog: React.FC = () => {
           "An unexpected error occurred while saving. See console for details."
         );
       }
+    }
+  };
+
+  const handleDeleteLog = async () => {
+    const img = reviewImages[currentImageIndex];
+    if (!img) return;
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this log? This action cannot be undone."
+      )
+    )
+      return;
+    try {
+      await deleteTrainingData(img.id);
+      setReviewImages((prev) =>
+        prev.filter((_, idx) => idx !== currentImageIndex)
+      );
+      setModalOpen(false);
+      alert("Log deleted successfully.");
+    } catch (error: any) {
+      alert("Failed to delete log. See console for details.");
+      console.error("[DELETE] Error deleting training data:", error);
     }
   };
 
@@ -721,6 +762,7 @@ const DiveLog: React.FC = () => {
             acceptCurrentEntry();
             setModalOpen(false);
           }}
+          onDelete={handleDeleteLog}
           onDataEdit={handleDataEdit}
           onTableDataChange={handleTableDataChange}
           isNameValid={isNameValid}
