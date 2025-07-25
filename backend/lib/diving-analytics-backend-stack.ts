@@ -6,6 +6,8 @@ import * as s3n from 'aws-cdk-lib/aws-s3-notifications';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
+import * as events from 'aws-cdk-lib/aws-events';
+import * as targets from 'aws-cdk-lib/aws-events-targets';
 
 export class DivingAnalyticsBackendStack extends cdk.Stack {
     public readonly inputBucket: s3.Bucket;
@@ -337,7 +339,18 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
                 DIVES_TABLE_NAME: this.divesTable.tableName
             }
         });
-        // Get Training Data by Status Lambda Function
+        // EventBridge rule to schedule importCompetitionDataFunction every Sunday
+        const importCompetitionDataSchedule = new events.Rule(this, 'ImportCompetitionDataSchedule', {
+            description: 'Schedule to run import competition data function every Sunday',
+            schedule: events.Schedule.cron({
+                minute: '0',
+                hour: '9',
+                weekDay: 'SUN'
+            })
+        });
+
+        // Add the Lambda function as a target for the EventBridge rule
+        importCompetitionDataSchedule.addTarget(new targets.LambdaFunction(this.importCompetitionDataFunction));        // Get Training Data by Status Lambda Function
         this.getTrainingDataByStatusFunction = new lambda.Function(this, 'GetTrainingDataByStatusFunction', {
             runtime: lambda.Runtime.PYTHON_3_12,
             handler: 'get_training_data_by_status.handler',
@@ -359,7 +372,7 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
 
         this.updateTrainingDataFunction = new lambda.Function(this, 'UpdateTrainingDataFunction', {
             runtime: lambda.Runtime.PYTHON_3_12,
-            handler: 'update_training_data.handler',
+            handler: 'upsert_training_data.handler',
             code: lambda.Code.fromAsset('lambda', {
                 bundling: {
                     image: lambda.Runtime.PYTHON_3_12.bundlingImage,

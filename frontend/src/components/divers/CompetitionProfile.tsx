@@ -42,7 +42,6 @@ export const CompetitionProfile: React.FC<CompetitionProfileProps> = ({
                                                                           setSelectedDiveCode,
                                                                           selectedDiveCodeTrendData,
                                                                           handleBackClick,
-                                                                          // Filter props
                                                                           availableDiveCodes,
                                                                           availableBoards,
                                                                           selectedDiveCodes,
