@@ -16,6 +16,9 @@ interface ImageData {
   s3Url?: string;
   uploadStatus?: "pending" | "uploading" | "success" | "error";
   uploadError?: string;
+  session_date?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface DiveLogModalProps {
@@ -27,6 +30,7 @@ interface DiveLogModalProps {
   onEditToggle: () => void;
   onSave: () => void;
   onAccept: () => void;
+  onDelete: () => void;
   onDataEdit: (
     field: string,
     value: any,
@@ -369,6 +373,7 @@ const DiveLogModal: React.FC<DiveLogModalProps> = ({
   onEditToggle,
   onSave,
   onAccept,
+  onDelete,
   onDataEdit,
   onTableDataChange,
   isNameValid,
@@ -392,6 +397,7 @@ const DiveLogModal: React.FC<DiveLogModalProps> = ({
     const name = currentImage.extractedData.Name || "";
     const comment = currentImage.extractedData.comment || "";
     const rating = currentImage.extractedData.rating || "";
+    const sessionDate = getUploadedDate();
     const csvData = currentImage.extractedData.Dives.map((dive) => {
       let successRate = dive.Success;
       if (typeof successRate === "string" && successRate.includes("/")) {
@@ -404,6 +410,7 @@ const DiveLogModal: React.FC<DiveLogModalProps> = ({
       }
       return {
         "Diver Name": name,
+        "Session Date": sessionDate,
         "Log Rating": rating,
         Balks: currentImage.extractedData.balks ?? 0,
         Comment: comment,
@@ -430,6 +437,37 @@ const DiveLogModal: React.FC<DiveLogModalProps> = ({
   };
 
   const isRatingValid = !!currentImage?.extractedData?.rating;
+
+  // Helper to get today's date in yyyy-mm-dd
+  const getToday = () => {
+    const d = new Date();
+    return d.toISOString().slice(0, 10);
+  };
+  // Helper to get the uploaded date in yyyy-mm-dd
+  const getUploadedDate = () => {
+    // 1. Use session_date if set
+    if (currentImage.session_date) return currentImage.session_date;
+    // 2. Use createdAt if available
+    if (currentImage.createdAt) {
+      const d = new Date(currentImage.createdAt);
+      if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+    }
+    // 3. Use updatedAt if available
+    if (currentImage.updatedAt) {
+      const d = new Date(currentImage.updatedAt);
+      if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+    }
+    // 4. Try to extract from image.id if it looks like a timestamp
+    if (currentImage.id && /^\d{13}/.test(currentImage.id)) {
+      const ts = parseInt(currentImage.id.split("-")[0], 10);
+      if (!isNaN(ts)) {
+        const d = new Date(ts);
+        return d.toISOString().slice(0, 10);
+      }
+    }
+    // 5. Fallback to today
+    return getToday();
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
@@ -478,7 +516,7 @@ const DiveLogModal: React.FC<DiveLogModalProps> = ({
                   ) : (
                     <Edit2 className="h-4 w-4" />
                   )}
-                  {currentImage.isEditing ? "Cancel Edit" : "Edit Data"}
+                  {currentImage.isEditing ? "Cancel" : "Edit Data"}
                 </button>
                 <button
                   onClick={onSave}
@@ -504,9 +542,8 @@ const DiveLogModal: React.FC<DiveLogModalProps> = ({
                 )}
               </div>
             </div>
-            {/* Diver Info */}
+            {/* Diver Name */}
             <div className="space-y-4 mb-6">
-              {/* Diver Name */}
               <div className="space-y-2">
                 <label className="block font-medium text-gray-700">
                   Diver Name
@@ -543,6 +580,24 @@ const DiveLogModal: React.FC<DiveLogModalProps> = ({
                 )}
                 {!isNameValid && currentImage.isEditing && (
                   <span className="text-red-500 text-xs mt-1">{nameError}</span>
+                )}
+              </div>
+              {/* Session Date - moved below name */}
+              <div className="space-y-2">
+                <label className="block font-medium text-gray-700">
+                  Session Date
+                </label>
+                {currentImage.isEditing ? (
+                  <input
+                    type="date"
+                    value={getUploadedDate()}
+                    onChange={(e) => onDataEdit("session_date", e.target.value)}
+                    className="w-full px-3 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                ) : (
+                  <div className="font-semibold text-base text-gray-900">
+                    {getUploadedDate()}
+                  </div>
                 )}
               </div>
               {/* Log Rating */}
@@ -663,6 +718,18 @@ const DiveLogModal: React.FC<DiveLogModalProps> = ({
                 </div>
               )}
             </div>
+            {/* Delete button at the very bottom */}
+            {currentImage.isEditing && (
+              <div className="pt-4">
+                <button
+                  onClick={onDelete}
+                  className="w-full flex items-center justify-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete Log
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -680,6 +747,9 @@ interface ConfirmedLogModalProps {
         totalDives: number;
         balks: number;
         extractedData?: DiveData;
+        session_date?: string;
+        createdAt?: string;
+        updatedAt?: string;
       }
     | undefined;
   currentLogIndex: number;
@@ -703,11 +773,64 @@ const ConfirmedLogModal: React.FC<ConfirmedLogModalProps> = ({
     rating: undefined,
   };
 
+  // Helper to get session date for display and CSV
+  const getSessionDate = () => {
+    let sessionDate = "";
+    if (log && (log as any).session_date)
+      sessionDate = (log as any).session_date;
+    else if (log && (log as any).createdAt)
+      sessionDate = (log as any).createdAt;
+    else if (log && (log as any).updatedAt)
+      sessionDate = (log as any).updatedAt;
+    else if (log && (log as any).date) sessionDate = (log as any).date;
+    else sessionDate = "";
+    if (!sessionDate) {
+      // Debug: log the log object if session date is missing
+      // eslint-disable-next-line no-console
+      console.warn("No session date found on log:", log);
+    }
+    if (sessionDate) {
+      const d = new Date(sessionDate);
+      if (!isNaN(d.getTime())) sessionDate = d.toISOString().slice(0, 10);
+    }
+    return sessionDate;
+  };
+  const sessionDate = getSessionDate();
+  // Helper to get balks value
+  const getBalks = () => {
+    if (typeof log.balks === "number") return log.balks;
+    if (extracted && typeof (extracted as any).balks === "number")
+      return (extracted as any).balks;
+    if (extracted && typeof (extracted as any).Balks === "number")
+      return (extracted as any).Balks;
+    return 0;
+  };
+  const balks = getBalks();
+
   // Download CSV function (same as DiveLogModal)
   const downloadCSV = () => {
     const name = extracted.Name || "";
     const comment = extracted.comment || "";
     const rating = extracted.rating || "";
+    // Try to get session date from log, fallback to empty string
+    let sessionDate = "";
+    if (log && (log as any).session_date)
+      sessionDate = (log as any).session_date;
+    else if (log && (log as any).createdAt)
+      sessionDate = (log as any).createdAt;
+    else if (log && (log as any).updatedAt)
+      sessionDate = (log as any).updatedAt;
+    else if (log && (log as any).date) sessionDate = (log as any).date;
+    else sessionDate = "";
+    if (!sessionDate) {
+      // Debug: log the log object if session date is missing
+      // eslint-disable-next-line no-console
+      console.warn("No session date found on log (CSV):", log);
+    }
+    if (sessionDate) {
+      const d = new Date(sessionDate);
+      if (!isNaN(d.getTime())) sessionDate = d.toISOString().slice(0, 10);
+    }
     const csvData = (extracted.Dives || []).map((dive) => {
       let successRate = dive.Success;
       if (typeof successRate === "string" && successRate.includes("/")) {
@@ -733,6 +856,7 @@ const ConfirmedLogModal: React.FC<ConfirmedLogModalProps> = ({
       }
       return {
         "Diver Name": name,
+        "Session Date": sessionDate,
         "Log Rating": rating,
         Balks: balksValue,
         Comment: comment,
@@ -789,11 +913,15 @@ const ConfirmedLogModal: React.FC<ConfirmedLogModalProps> = ({
             </div>
           </div>
 
-          {/* Extracted Data (now shows date) */}
+          {/* Extracted Data (now shows date, balks) */}
           <div className="space-y-6">
             <div className="flex flex-col md:flex-row items-center md:justify-between">
               <h3 className="text-xl font-semibold md:mb-0 mb-3 text-gray-900">
-                {formattedDate}
+                {sessionDate ? (
+                  <span>{new Date(sessionDate).toLocaleDateString()}</span>
+                ) : (
+                  ""
+                )}
               </h3>
               {/* REMOVE TOP DOWNLOAD CSV BUTTON */}
             </div>
@@ -830,6 +958,22 @@ const ConfirmedLogModal: React.FC<ConfirmedLogModalProps> = ({
                 ) : (
                   <span className="font-semibold text-base text-gray-900"></span>
                 )}
+              </div>
+              {/* Balks */}
+              <div className="space-y-2">
+                <label className="block font-medium text-gray-700">Balks</label>
+                <div className="font-semibold text-base text-gray-900">
+                  {balks}
+                </div>
+              </div>
+              {/* Session Date (explicit) */}
+              <div className="space-y-2">
+                <label className="block font-medium text-gray-700">
+                  Session Date
+                </label>
+                <div className="font-semibold text-base text-gray-900">
+                  {sessionDate}
+                </div>
               </div>
             </div>
             <hr className="my-4 border-gray-200" />
