@@ -1,47 +1,215 @@
 # Diving Analytics Platform
 
-This repository contains both the frontend and backend code for the Diving Analytics Platform.
+| Index                                             | Description                                                             |
+|:--------------------------------------------------|:------------------------------------------------------------------------|
+| [Overview](#overview)                             | See the motivation behind this project                                  | 
+| [Description](#description)                       | Learn more about the problem, implemented solution and challenges faced | 
+| [Deployment Guide](#deployment)                   | How to install and deploy __Diving Analytics Platform__                 |
+| [How to Use](#how-to-use)                         | Instructions to use __Diving Analytics Platform__                       |
+| [Technical Architecture](#technical-architecture) | Detailed technical implementation and architecture                      |
+| [Lessons Learned](#lessons-learned)               | Limitations, lessons learned and next steps which can be taken          |
+| [Bill Of Materials](#bill-of-materials)           | Cost of deployment                                                      |
+| [Credits](#credits)                               | Meet the team behind this                                               |
+| [License](#license)                               | License details                                                         |
 
-## Project Structure
+# Overview
 
-- `backend/` - Contains the AWS CDK infrastructure code
-- `frontend/` - Contains the React web application
+The Diving Analytics Platform is an AI-powered web application designed to revolutionize diving performance analysis for
+coaches, athletes, and sports analytics professionals. By leveraging AWS cloud services and advanced machine learning
+capabilities, the platform provides comprehensive insights into diving techniques, performance metrics, and training
+progress.
 
-## Backend Deployment Instructions
+# Description
 
-### Prerequisites
+## Problem
 
-- [Node.js](https://nodejs.org/) (v18 or later)
-- [AWS CLI](https://aws.amazon.com/cli/) installed and configured
-- [AWS CDK](https://aws.amazon.com/cdk/) installed
+Traditional diving performance analysis relies heavily on manual observation and subjective scoring, which presents
+several challenges:
 
-### Setup
+- **Limited Data Capture**: Manual methods cannot capture the granular details needed for comprehensive performance
+  analysis
+- **Time-Intensive Process**: Analyzing diving performance sheet and providing detailed feedback is extremely
+  time-consuming
+- **Lack of Historical Tracking**: Difficulty in tracking long-term progress and identifying performance trends
+- **Subjective Scoring**: Traditional scoring methods may lack the precision needed for elite-level training
 
-1. Install dependencies:
+The sports analytics industry needs a solution that can provide objective, data-driven insights while reducing the time
+and effort required for comprehensive diving analysis.
 
-```bash
-cd backend
-npm install
-```
+## Our Approach
 
-2. Bootstrap your AWS environment (first-time only):
+The Diving Analytics Platform addresses the challenges of traditional diving analysis through a comprehensive,
+AI-powered solution built on AWS cloud infrastructure. Our approach combines cutting-edge machine learning capabilities
+with modern web technologies to deliver an intuitive, scalable platform for diving performance analysis.
 
-```bash
-npx cdk bootstrap
-```
+**Serverless AI Processing Pipeline**: We implemented a two-stage AI analysis system using Amazon Bedrock Data
+Automation for text extraction from diving score sheets and images, followed by Large Language Models to process the
+extracted data into structured, diving-specific insights. This serverless approach ensures automatic scaling and
+cost-effectiveness while providing real-time analysis capabilities.
 
-3. Deploy the stacks:
+**Event-Driven Architecture**: The platform uses an event-driven design where file uploads to S3 automatically trigger
+Lambda functions for processing, eliminating manual intervention. This architecture includes dedicated microservices for
+diver profile management, training data analysis, competition data import, and real-time status tracking, all built
+using AWS CDK for reproducible infrastructure deployment.
 
-```bash
-# Deploy both stacks
-npx cdk deploy --all
+**Modern Web Interface**: Built with React and TypeScript, the frontend provides a responsive interface that simplifies
+the analysis workflow to three steps: upload diving content, automatic AI processing, and review of insights. The
+platform integrates with Amazon Cognito for secure authentication and uses DynamoDB for scalable data storage with
+optimized querying patterns for diving analytics use cases.
 
-# Or deploy individual stacks
-npx cdk deploy DivingAnalyticsBackendStack
-npx cdk deploy DivingAnalyticsFrontendStack
-```
+## Architecture Diagram
 
-### Useful CDK Commands
+![Diving Analtics Platform Architecture](images/architecture.jpeg)
+
+## Functionality
+
+The Diving Analytics Platform provides the following core capabilities:
+
+1. **Image Upload**: Secure upload of training sheet image for analysis
+2. **AI-Powered Analysis**: Analysis using Amazon Bedrock Data Automation and Amazon Bedrock LLMs
+3. **Performance Metrics**: Detailed scoring and performance indicators
+4. **Diver Profiles**: Comprehensive athlete profiles with historical data
+5. **Training Logs**: Digital dive logs with progress tracking
+6. **Competition Data**: Import and analyze competition results
+7. **Dashboard Analytics**: Visual representation of performance trends
+8. **Real-time Processing**: Live analysis status and notifications
+
+## Technologies
+
+**Amazon Web Services:**
+
+- [AWS CDK](https://aws.amazon.com/cdk/) - Infrastructure as Code
+- [Amazon Bedrock](https://aws.amazon.com/bedrock/) - AI/ML Analysis
+- [AWS Lambda](https://aws.amazon.com/lambda/) - Serverless Functions
+- [Amazon DynamoDB](https://aws.amazon.com/dynamodb/) - NoSQL Database
+- [Amazon S3](https://aws.amazon.com/s3/) - Object Storage
+- [AWS Amplify](https://aws.amazon.com/amplify/) - Frontend Hosting
+- [Amazon Cognito](https://aws.amazon.com/cognito/) - Auth
+- [Amazon Eventbridge](https://aws.amazon.com/eventbridge/) - Automated lambda execution
+- [Amazon API Gateway](https://aws.amazon.com/api-gateway/) - REST API Management
+
+**Frontend Technologies:**
+
+- [React](https://reactjs.org/) - User Interface Framework
+- [TypeScript](https://www.typescriptlang.org/) - Type-safe JavaScript
+- [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS Framework
+- [Chart.js](https://www.chartjs.org/) - Data Visualization
+- [React Query](https://tanstack.com/query) - Data Fetching & State Management
+- [React Router](https://reactrouter.com/) - Client-side Routing
+
+**Development Tools:**
+
+- [Node.js](https://nodejs.org/) - Runtime Environment
+- [AWS CLI](https://aws.amazon.com/cli/) - Command Line Interface
+- [Jest](https://jestjs.io/) - Testing Framework
+
+# Deployment
+
+## Prerequisites
+
+Before deploying the Diving Analytics Platform, ensure you have the following installed:
+
+1. **Node.js** (v18 or later) - [Download here](https://nodejs.org/)
+2. **AWS CLI** - [Installation guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
+3. **AWS CDK** - Install globally: `npm install -g aws-cdk`
+4. **Git** - [Download here](https://git-scm.com/)
+
+## AWS Account Setup
+
+1. **Configure AWS CLI**:
+   ```bash
+   aws configure
+   ```
+   Enter your AWS Access Key ID, Secret Access Key, default region, and output format.
+
+2. **Bootstrap CDK** (first-time only):
+   ```bash
+   cdk bootstrap
+   ```
+
+## Backend Deployment
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/pitt-cic/diving-analytics-platform.git
+   cd diving-analytics-platform
+   ```
+
+2. **Install backend dependencies**:
+   ```bash
+   cd backend
+   npm install
+   ```
+
+3. **Build the project**:
+   ```bash
+   npm run build
+   ```
+
+4. **Deploy the backend infrastructure**:
+   ```bash
+   # Deploy both backend and frontend stacks
+   npx cdk deploy --all
+
+   # Or deploy individual stacks
+   npx cdk deploy DivingAnalyticsBackendStack
+   npx cdk deploy DivingAnalyticsFrontendStack
+   ```
+
+5. **Note the outputs**: After deployment, note the API Gateway URL and other outputs for frontend configuration.
+
+## Frontend Deployment
+
+### Method 1: Automatic Deployment (Recommended)
+
+1. **Build the frontend**:
+   ```bash
+   cd ../frontend
+   npm install
+   npm run build
+   ```
+
+2. **Deploy using the provided script**:
+   ```bash
+   cd ..
+   ./deploy.sh
+   ```
+
+The deployment script will:
+
+- Automatically detect your Amplify App ID from CloudFormation outputs
+- Create a deployment package from your build files
+- Upload and deploy to AWS Amplify
+- Monitor deployment status until completion
+
+### Method 2: Manual Deployment
+
+1. **Get Amplify App ID** from AWS Console or CloudFormation outputs
+2. **Create deployment**:
+   ```bash
+   aws amplify create-deployment --app-id <APP_ID> --branch-name main
+   ```
+3. **Upload build files** using the provided upload URL
+4. **Start deployment**:
+   ```bash
+   aws amplify start-deployment --app-id <APP_ID> --branch-name main --job-id <JOB_ID>
+   ```
+
+## Environment Configuration
+
+1. **Frontend Environment Variables**:
+   Create a `.env` file in the frontend directory:
+   ```env
+   REACT_APP_API_URL=<API_GATEWAY_URL>
+   REACT_APP_AWS_REGION=<YOUR_AWS_REGION>
+   REACT_APP_USER_POOL_ID=<COGNITO_USER_POOL_ID>
+   REACT_APP_USER_POOL_CLIENT_ID=<COGNITO_CLIENT_ID>
+   ```
+
+2. **Backend Environment Variables**:
+   Environment variables are automatically configured through CDK deployment.
+
+## Useful CDK Commands
 
 - `npm run build` - Compile TypeScript code
 - `npm run watch` - Watch for changes and compile
@@ -49,79 +217,224 @@ npx cdk deploy DivingAnalyticsFrontendStack
 - `npx cdk deploy` - Deploy stack to your AWS account/region
 - `npx cdk diff` - Compare deployed stack with current state
 - `npx cdk synth` - Emit the synthesized CloudFormation template
+- `npx cdk destroy` - Remove the deployed stack
 
-## Frontend
+# How to Use
 
-### Frontend Hosting with AWS Amplify
+## 1. Access the Application
 
-The React application is hosted using AWS Amplify. The FrontendStack creates:
-
-1. An Amplify application for hosting the frontend
-2. A main branch configuration for deployment
-
-### Prerequisites for Frontend Deployment
-
-Before deploying your frontend application, you need to:
-
-1. Deploy the frontend infrastructure stack:
-
-```bash
-cd backend
-npm install
-npx cdk deploy FrontendStack
-```
-
-2. Build your React application:
-
-```bash
-cd frontend
-npm install
-npm run build
-```
-
-This will generate the build files in the `frontend/build` directory, which will be deployed using the deployment script.
-
-### Deployment Process
-
-The frontend deployment process has two parts:
-
-1. Infrastructure deployment (one-time setup):
-
-   - An Amplify application is created with AWS CDK
-   - A main branch is configured for deployment
-
-2. Application deployment (whenever you update your code):
-   - The provided deployment script uploads your built frontend to Amplify
-
-### Accessing Your Deployed Frontend
-
-After deployment, you can access your application using the Amplify URL provided in the CDK output. The URL format will be:
+Navigate to your deployed Amplify URL (provided in the deployment outputs):
 
 ```
-https://main.[app-id].amplifyapp.com
+https://main.<app-id>.amplifyapp.com
 ```
 
-### Updating Your Deployed Frontend
+## 2. User Authentication
 
-To update your deployed application, follow these steps:
+### Sign In
 
-1. Make changes to your React codebase in the frontend directory
-2. Rebuild the application:
-   ```bash
-   cd frontend
-   npm run build
-   ```
-3. Run the deployment script from the project root:
-   ```bash
-   ./deploy.sh
-   ```
+1. Enter your registered email and password
+2. Click "Sign In" to access the dashboard
 
-The deployment script will:
+## 3. Dashboard Navigation
 
-1. Automatically detect your Amplify App ID from CloudFormation outputs
-2. Create a deployment in Amplify
-3. Upload your build files
-4. Start the deployment
-5. Monitor the deployment status until completion
+The main dashboard provides:
 
-You don't need to redeploy the FrontendStack unless you want to change the infrastructure configuration.
+- **Overview Cards**: Quick stats on total dives, average scores, and recent activity
+- **Performance Charts**: Visual representation of diving performance over time
+- **Recent Activity**: Latest dive logs and analysis results
+- **Quick Actions**: View profiles, or access training logs
+
+## 4. Upload and Analyze Diving Content
+
+### Image Upload
+
+1. Navigate to the "Dive Log" section
+2. Select diving images from your device
+3. Click "Upload" to start the analysis process
+
+### Analysis Process
+
+1. **Processing**: AI analysis begins automatically after upload
+2. **Status Tracking**: Monitor analysis progress in real-time
+3. **Results**: View detailed analysis results including:
+    - Technical scores
+    - Form analysis
+    - Improvement suggestions
+    - Comparison with previous performances
+
+## 5. Diver Profiles
+
+### View Diver Information
+
+1. Navigate to "Divers" section
+2. Select a diver from the list
+3. View comprehensive profile including:
+    - Personal information
+    - Performance history
+    - Training progress
+    - Competition results
+
+### Manage Profiles
+
+1. Add new divers with personal and performance data
+2. Update existing profiles with new information
+3. Track long-term progress and improvements
+
+## 6. Training Logs
+
+### Digital Dive Logs
+
+1. Access "Dive Log" section
+2. View chronological list of all dives
+3. Filter by diver, date, or dive type
+4. Export data for external analysis
+
+### Training Data Management
+
+1. Review AI analysis results
+2. Approve or modify automated assessments
+3. Add manual notes and observations
+4. Track training progression over time
+
+# Technical Architecture
+
+## Backend Architecture
+
+### CDK Infrastructure
+
+The backend is built using AWS CDK with TypeScript, providing:
+
+**Core Stacks:**
+
+- `DivingAnalyticsBackendStack`: Main application infrastructure
+- `DivingAnalyticsFrontendStack`: Frontend hosting and authentication
+
+### API Architecture
+
+RESTful API design with the following endpoints:
+
+- `GET /divers` - List all divers
+- `GET /divers/{id}` - Get diver profile
+- `GET /divers/{id}/training` - Get training data
+- `POST /training` - Upload training data
+- `PUT /training/{id}` - Update training data
+- `DELETE /training/{id}` - Delete training data
+
+## Frontend Architecture
+
+### React Application Structure
+
+```
+src/
+├── components/          # Reusable UI components
+│   ├── layout/         # Layout components
+│   ├── charts/         # Data visualization components
+│   └── forms/          # Form components
+├── pages/              # Page components
+│   ├── Dashboard/      # Main dashboard
+│   ├── Divers/         # Diver management
+│   ├── DiveLog/        # Training logs
+│   └── Auth/           # Authentication
+├── services/           # API service layer
+├── types/              # TypeScript type definitions
+└── constants/          # Application constants
+```
+
+### State Management
+
+- **React Query**: Server state management and caching
+- **React Context**: Global application state
+- **Local State**: Component-specific state with React hooks
+
+### Authentication Flow
+
+1. AWS Cognito handles user authentication
+2. JWT tokens are automatically managed
+3. Protected routes ensure authenticated access
+
+## AI/ML Integration
+
+### Amazon Bedrock Data Automation
+
+The platform leverages Bedrock's Data Automation capabilities for:
+
+**Analysis Pipeline:**
+
+1. **Input Processing**: Images uploaded to S3
+2. **AI Analysis**: Bedrock processes content for diving metrics
+3. **Result Generation**: Structured data output with scores and insights
+4. **Storage**: Results stored in DynamoDB for quick retrieval
+
+**Analysis Capabilities:**
+
+- Form and technique assessment
+- Scoring based on diving standards
+- Comparative analysis with historical data
+- Improvement recommendations
+
+# Lessons Learned
+
+> To be updated
+
+# Bill of Materials
+
+> To be updated
+
+# Credits
+
+**Diving Analytics Platform** is an open source project developed by the University of Pittsburgh Health Sciences and
+Sports Analytics Cloud Innovation Center.
+
+**Development Team:**
+
+- [Varun Shelke](https://www.linkedin.com/in/vashelke/)
+- [Vincent Niedermayer](https://www.linkedin.com/in/vincentniedermayer)
+
+**Project Leadership:**
+
+- **Technical Lead**: [Maciej Zukowski](https://www.linkedin.com/in/maciejzukowski/)
+- **Program Manager**: [Richard Turnquist](https://www.linkedin.com/in/richardturnquist/)
+  and [Kate Ulreich](https://www.linkedin.com/in/kate-ulreich-0a8902134/)
+
+**Special Thanks:**
+
+- [Katie Kasprzak](https://pittsburghpanthers.com/staff-directory/katie-kasprzak/398) - Head Coach, Pitt Diving
+- [Darren Kraker](https://www.linkedin.com/in/darrenkraker/) - Sr Solutions Architect, Cal Poly Digital Transformation
+  Hub
+
+This project is designed and developed with guidance and support from
+the [Health Sciences and Sports Analytics Cloud Innovation Center, Powered by AWS](https://digital.pitt.edu/cio/cic).
+
+# License
+
+This project is distributed under the [MIT License](LICENSE).
+
+```
+MIT License
+
+Copyright (c) 2025 University of Pittsburgh Health Sciences and Sports Analytics Cloud Innovation Center
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+---
+
+For questions, issues, or contributions, please visit
+our [GitHub repository](https://github.com/your-org/diving-analytics-platform) or contact the development team.
