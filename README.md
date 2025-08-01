@@ -147,14 +147,30 @@ Before deploying the Diving Analytics Platform, ensure you have the following in
    ```
 
 4. **Deploy the backend infrastructure**:
+
+   **Interactive Deployment Script (Recommended)**
    ```bash
-   # Deploy both backend and frontend stacks
-   npx cdk deploy --all
+   # Run the interactive deployment script
+   ./deploy-backend.sh
+   ```
+   This script will:
+   - Check all prerequisites and detect correct directory
+   - Prompt you for the team number with validation
+   - Show deployment confirmation with AWS account details
+   - Install dependencies and build automatically
+   - Deploy all stacks and provide detailed status updates
+
+   **Manual CDK Commands**
+   ```bash
+   # Deploy with a specific team number (required)
+   npx cdk deploy --all --context teamNumber=<your_team_number_here>
 
    # Or deploy individual stacks
-   npx cdk deploy DivingAnalyticsBackendStack
+   npx cdk deploy DivingAnalyticsBackendStack --context teamNumber=<your_team_number_here>
    npx cdk deploy DivingAnalyticsFrontendStack
    ```
+
+   **Note**: A team number is required for deployment. The system will not work without a valid team number from the DiveMeets system.
 
 5. **Note the outputs**: After deployment, note the API Gateway URL and other outputs for frontend configuration.
 
@@ -164,7 +180,7 @@ Before deploying the Diving Analytics Platform, ensure you have the following in
 
 1. **Build the frontend**:
    ```bash
-   cd ../frontend
+   cd frontend
    npm install
    npm run build
    ```
@@ -197,6 +213,56 @@ The deployment script will:
 
 ## Environment Configuration
 
+### Team Number Configuration
+
+The platform is configured to import competition data for a specific diving team. A team number is required for the system to function properly.
+
+#### Finding Your Team Number
+
+1. Visit [DiveMeets System](https://secure.meetcontrol.com/divemeets/system/teamlist.php)
+2. Search for your team and navigate to the team's profile page
+3. The team number appears in the URL: `profilet.php?number=XXXX`
+4. Use this number (XXXX) for configuration
+
+#### Configuration Methods
+
+**Method 1: Interactive Deployment Script (Recommended)**
+```bash
+cd backend
+./deploy-backend.sh
+```
+This script provides a guided deployment experience with team number validation and confirmation.
+
+**Method 2: Deploy-time Configuration**
+```bash
+# Deploy with a specific team number (required)
+npx cdk deploy --context teamNumber=<your_team_number_here>
+
+# Deploy all stacks with team number
+npx cdk deploy --all --context teamNumber=<your_team_number_here>
+```
+
+**Method 3: Manual Configuration via AWS Console**
+1. Go to AWS Lambda Console
+2. Find the `ImportCompetitionDataFunction`
+3. Navigate to Configuration → Environment variables
+4. Add/modify `TEAM_NUMBER` with your team's number
+5. Save the changes
+
+**Method 4: Update CDK Code**
+1. Edit `lib/diving-analytics-backend-stack.ts`
+2. Change the value in: `TEAM_NUMBER: this.node.tryGetContext('teamNumber') || 'YOUR_TEAM_NUMBER'`
+3. Redeploy: `npx cdk deploy DivingAnalyticsBackendStack`
+
+#### Validation
+
+The system validates that the team number is numeric and will log which team number is being used during execution. Check CloudWatch logs for confirmation:
+```
+Starting diving data extraction for team number: 1234
+```
+
+### Other Environment Variables
+
 1. **Frontend Environment Variables**:
    Create a `.env` file in the frontend directory:
    ```env
@@ -214,10 +280,46 @@ The deployment script will:
 - `npm run build` - Compile TypeScript code
 - `npm run watch` - Watch for changes and compile
 - `npm run test` - Run unit tests
-- `npx cdk deploy` - Deploy stack to your AWS account/region
+- `npx cdk deploy --context teamNumber=<your_team_number_here>` - Deploy stack with team number (required)
+- `npx cdk deploy --all --context teamNumber=<your_team_number_here>` - Deploy all stacks with team number
 - `npx cdk diff` - Compare deployed stack with current state
 - `npx cdk synth` - Emit the synthesized CloudFormation template
 - `npx cdk destroy` - Remove the deployed stack
+
+## Troubleshooting
+
+### Team Configuration Issues
+
+**Problem**: No divers found or incorrect team data
+- **Solution**: Verify the team number is correct by visiting the MeetControl website
+- **Check**: Ensure the team number is numeric (no letters or special characters)
+- **Verify**: Check CloudWatch logs for the message "Starting diving data extraction for team number: XXXX"
+
+**Problem**: Lambda function fails with team number error
+- **Solution**: The team number must be numeric and is required. Ensure TEAM_NUMBER environment variable is set
+- **Check**: Review the error message in CloudWatch logs for specific validation failures
+
+**Problem**: Deployment fails with "Team number is required" error
+- **Solution**: Provide team number during deployment: `npx cdk deploy --context teamNumber=<your_team_number_here>`
+- **Alternative**: Use the deployment script: `./deploy-backend.sh`
+
+### Deployment Script Issues
+
+**Problem**: Script shows "Permission denied" error
+- **Solution**: Make the script executable: `chmod +x deploy-backend.sh`
+
+**Problem**: Script fails with "command not found" errors
+- **Solution**: Ensure prerequisites are installed:
+  - Node.js: `node --version`
+  - AWS CLI: `aws --version`
+  - CDK: `cdk --version`
+
+**Problem**: Script fails with AWS credential errors
+- **Solution**: Configure AWS credentials: `aws configure`
+- **Verify**: Test with `aws sts get-caller-identity`
+
+**Problem**: Script fails to find correct directory
+- **Solution**: The script can run from either the backend directory (`cd backend`) or the parent directory containing the backend folder
 
 # How to Use
 

@@ -336,7 +336,8 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
                 DIVERS_TABLE_NAME: this.diversTable.tableName,
                 COMPETITIONS_TABLE_NAME: this.competitionsTable.tableName,
                 RESULTS_TABLE_NAME: this.resultsTable.tableName,
-                DIVES_TABLE_NAME: this.divesTable.tableName
+                DIVES_TABLE_NAME: this.divesTable.tableName,
+                TEAM_NUMBER: this.node.tryGetContext('teamNumber')
             }
         });
         // EventBridge rule to schedule importCompetitionDataFunction every Sunday
@@ -350,7 +351,7 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
         });
 
         // Add the Lambda function as a target for the EventBridge rule
-        importCompetitionDataSchedule.addTarget(new targets.LambdaFunction(this.importCompetitionDataFunction));        // Get Training Data by Status Lambda Function
+        importCompetitionDataSchedule.addTarget(new targets.LambdaFunction(this.importCompetitionDataFunction));
         this.getTrainingDataByStatusFunction = new lambda.Function(this, 'GetTrainingDataByStatusFunction', {
             runtime: lambda.Runtime.PYTHON_3_12,
             handler: 'get_training_data_by_status.handler',

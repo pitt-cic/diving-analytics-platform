@@ -1,20 +1,3 @@
-#!/usr/bin/env python3
-"""
-AWS Lambda Function: Import Competition Data
-
-This Lambda function parses HTML files from divemeets.com to extract comprehensive diving team data.
-It processes the team page, individual diver profiles, and competition results to create
-a structured JSON dataset using parallel processing for improved performance.
-
-The function is designed to be triggered by AWS events and will store the processed data
-in an S3 bucket or database as configured.
-
-Requirements:
-    - requests
-    - beautifulsoup4
-
-Author: Lambda version adapted from parallel processing script
-"""
 import logging
 import re
 import time
@@ -26,33 +9,21 @@ from typing import List, Dict, Any
 import requests
 from bs4 import BeautifulSoup
 
-# Configure logging for Lambda
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-# Thread-safe counter for progress tracking
 progress_lock = Lock()
 progress_counter = {'processed': 0, 'total': 0}
 HTML_PARSER = 'html.parser'
 
 
 def update_progress(increment=1):
-    """Thread-safe progress counter update"""
     with progress_lock:
         progress_counter['processed'] += increment
         logger.info(f"Progress: {progress_counter['processed']}/{progress_counter['total']} divers processed")
 
 
 def parse_team_page(html: str) -> List[Dict[str, Any]]:
-    """
-    Parse the team page HTML to extract diver profile URLs and IDs.
-
-    Args:
-        html: Raw HTML content of the team page
-
-    Returns:
-        List of dictionaries containing diver ID and profile URL information
-    """
     soup = BeautifulSoup(html, HTML_PARSER)
     divers = []
 
@@ -446,11 +417,28 @@ def extract_diving_data(max_diver_workers: int = 8) -> List[Dict[str, Any]]:
         List of processed diver data
     """
     start_time = time.time()
-    logger.info("Starting University of Pittsburgh diving data extraction")
+
+    # Get team number from environment variable (required)
+    import os
+    team_number = os.environ.get('TEAM_NUMBER')
+    
+    if not team_number:
+        logger.error("TEAM_NUMBER environment variable is required but not set.")
+        raise ValueError("TEAM_NUMBER environment variable is required but not set.")
+
+    # Validate team number is numeric
+    try:
+        int(team_number)
+    except ValueError:
+        logger.error(f"Invalid team number: {team_number}. Team number must be numeric.")
+        raise ValueError(f"Invalid team number: {team_number}. Team number must be numeric.")
+
+    logger.info(f"Starting diving data extraction for team number: {team_number}")
+
 
     # Configuration
     base_url = 'https://secure.meetcontrol.com/divemeets/system/'
-    team_link = "profilet.php?number=2303"
+    team_link = f"profilet.php?number={team_number}"
 
     # Headers to mimic a real browser request
     headers = {
