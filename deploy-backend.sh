@@ -196,20 +196,15 @@ build_project() {
 # Function to check if CDK is bootstrapped
 check_bootstrap() {
     print_info "Checking CDK bootstrap status..."
-    
-    cd "$BACKEND_DIR"
-    
-    # Try to list stacks to see if bootstrap stack exists
+
     local region=$(aws configure get region)
     local account=$(aws sts get-caller-identity --query Account --output text)
     
     if aws cloudformation describe-stacks --stack-name CDKToolkit --region "$region" &> /dev/null; then
         print_success "CDK is already bootstrapped in region $region"
-        cd - > /dev/null
         return 0
     else
         print_warning "CDK is not bootstrapped in region $region"
-        cd - > /dev/null
         return 1
     fi
 }
@@ -217,25 +212,21 @@ check_bootstrap() {
 # Function to bootstrap CDK
 bootstrap_cdk() {
     print_info "Bootstrapping CDK..."
-    
-    cd "$BACKEND_DIR"
-    
+
     local region=$(aws configure get region)
     local account=$(aws sts get-caller-identity --query Account --output text)
     
     print_info "Bootstrapping CDK for account $account in region $region"
     print_info "Command: npx cdk bootstrap"
+    print_info "Current directory: $(pwd)"
     echo
     
     if npx cdk bootstrap; then
         print_success "CDK bootstrap completed successfully!"
     else
         print_error "CDK bootstrap failed! Please check the error messages above."
-        cd - > /dev/null
         exit 1
     fi
-    
-    cd - > /dev/null
 }
 
 # Function to deploy CDK stacks
@@ -244,11 +235,9 @@ deploy_stacks() {
     
     print_info "Starting CDK deployment with team number: $team_num"
     echo
-    
-    # Change to backend directory for CDK commands
+
     cd "$BACKEND_DIR"
-    
-    # Check if CDK is bootstrapped, and bootstrap if needed
+
     if ! check_bootstrap; then
         echo
         print_info "CDK bootstrap is required for first-time deployment."
@@ -278,10 +267,10 @@ deploy_stacks() {
     # Deploy all stacks with the team number context
     print_info "Deploying all CDK stacks..."
     print_info "Command: npx cdk deploy --all --context teamNumber=$team_num"
+    print_info "Current directory: $(pwd)"
     echo
     
     if npx cdk deploy --all --context teamNumber="$team_num" --require-approval never; then
-        cd - > /dev/null
         echo
         print_success "=== DEPLOYMENT COMPLETED SUCCESSFULLY! ==="
         print_success "Team number $team_num has been configured for the Diving Analytics Platform."
@@ -292,9 +281,10 @@ deploy_stacks() {
         print_info "3. Configure the frontend environment variables if needed"
         print_info "4. The Lambda function will now import data for team $team_num"
         echo
-    else
         cd - > /dev/null
+    else
         print_error "Deployment failed! Please check the error messages above."
+        cd - > /dev/null
         exit 1
     fi
 }
