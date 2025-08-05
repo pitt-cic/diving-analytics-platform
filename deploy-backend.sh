@@ -193,6 +193,51 @@ build_project() {
     print_success "Project built successfully!"
 }
 
+# Function to check if CDK is bootstrapped
+check_bootstrap() {
+    print_info "Checking CDK bootstrap status..."
+    
+    cd "$BACKEND_DIR"
+    
+    # Try to list stacks to see if bootstrap stack exists
+    local region=$(aws configure get region)
+    local account=$(aws sts get-caller-identity --query Account --output text)
+    
+    if aws cloudformation describe-stacks --stack-name CDKToolkit --region "$region" &> /dev/null; then
+        print_success "CDK is already bootstrapped in region $region"
+        cd - > /dev/null
+        return 0
+    else
+        print_warning "CDK is not bootstrapped in region $region"
+        cd - > /dev/null
+        return 1
+    fi
+}
+
+# Function to bootstrap CDK
+bootstrap_cdk() {
+    print_info "Bootstrapping CDK..."
+    
+    cd "$BACKEND_DIR"
+    
+    local region=$(aws configure get region)
+    local account=$(aws sts get-caller-identity --query Account --output text)
+    
+    print_info "Bootstrapping CDK for account $account in region $region"
+    print_info "Command: npx cdk bootstrap"
+    echo
+    
+    if npx cdk bootstrap; then
+        print_success "CDK bootstrap completed successfully!"
+    else
+        print_error "CDK bootstrap failed! Please check the error messages above."
+        cd - > /dev/null
+        exit 1
+    fi
+    
+    cd - > /dev/null
+}
+
 # Function to deploy CDK stacks
 deploy_stacks() {
     local team_num=$1
@@ -202,6 +247,33 @@ deploy_stacks() {
     
     # Change to backend directory for CDK commands
     cd "$BACKEND_DIR"
+    
+    # Check if CDK is bootstrapped, and bootstrap if needed
+    if ! check_bootstrap; then
+        echo
+        print_info "CDK bootstrap is required for first-time deployment."
+        
+        while true; do
+            echo -n "Do you want to bootstrap CDK now? (Y/n): "
+            read -r bootstrap_confirm
+            
+            case $bootstrap_confirm in
+                [Nn]* ) 
+                    print_error "CDK bootstrap is required for deployment. Exiting."
+                    cd - > /dev/null
+                    exit 1
+                    ;;
+                [Yy]* | "" ) 
+                    bootstrap_cdk
+                    break
+                    ;;
+                * ) 
+                    print_warning "Please answer yes (y) or no (n)."
+                    ;;
+            esac
+        done
+        echo
+    fi
     
     # Deploy all stacks with the team number context
     print_info "Deploying all CDK stacks..."
