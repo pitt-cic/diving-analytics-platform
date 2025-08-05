@@ -1,5 +1,15 @@
 // TypeScript interfaces
 
+export interface DiverFromAPI {
+  id: string;
+  name: string;
+  gender: string;
+  age: number;
+  city_state: string;
+  country: string;
+  hs_grad_year: number;
+}
+
 export interface Dive {
   dive_round: string;
   code: string;

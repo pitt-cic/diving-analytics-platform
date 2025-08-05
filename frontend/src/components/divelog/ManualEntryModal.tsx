@@ -1,7 +1,7 @@
-import React, {useState, useCallback} from "react";
-import {X, Plus, Trash2, Check} from "lucide-react";
-import {PITT_DIVERS} from "../../constants/pittDivers";
-import type {DiveEntry, DiveData} from "../../types/index";
+import React, {useState, useCallback, useEffect} from "react";
+import {X, Plus, Trash2, Check, Loader2} from "lucide-react";
+import getAllDivers from "../../services/getAllDivers";
+import type {DiveEntry, DiveData, DiverFromAPI} from "../../types/index";
 
 interface ManualEntryModalProps {
     isOpen: boolean;
@@ -17,6 +17,10 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
                                                                onClose,
                                                                onSave,
                                                            }) => {
+    const [divers, setDivers] = useState<DiverFromAPI[]>([]);
+    const [loadingDivers, setLoadingDivers] = useState(false);
+    const [diversError, setDiversError] = useState<string | null>(null);
+    
     const [formData, setFormData] = useState<DiveData>({
         Name: "",
         Dives: [
@@ -37,6 +41,27 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
         name?: string;
         dives?: string;
     }>({});
+
+    // Fetch divers when modal opens
+    useEffect(() => {
+        if (isOpen && divers.length === 0) {
+            fetchDivers();
+        }
+    }, [isOpen]);
+
+    const fetchDivers = async () => {
+        setLoadingDivers(true);
+        setDiversError(null);
+        try {
+            const diversData = await getAllDivers();
+            setDivers(diversData);
+        } catch (error) {
+            console.error('Error fetching divers:', error);
+            setDiversError('Failed to load divers. Please try again.');
+        } finally {
+            setLoadingDivers(false);
+        }
+    };
 
     // Reset form when modal opens
     React.useEffect(() => {
@@ -97,8 +122,8 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
         // Validate diver name
         if (!formData.Name.trim()) {
             newErrors.name = "Diver name is required";
-        } else if (!PITT_DIVERS.some((d) => d.name === formData.Name)) {
-            newErrors.name = "Diver name must match a valid Pitt diver";
+        } else if (!divers.some((d) => d.name === formData.Name)) {
+            newErrors.name = "Diver name must match a valid diver";
         }
 
         // Validate at least one dive
@@ -143,22 +168,43 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
                             <label className="block font-medium text-gray-700">
                                 Diver Name *
                             </label>
-                            <select
-                                value={formData.Name}
-                                onChange={(e) =>
-                                    setFormData((prev) => ({...prev, Name: e.target.value}))
-                                }
-                                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                                    errors.name ? "border-red-500" : "border-gray-300"
-                                }`}
-                            >
-                                <option value="">Select a diver...</option>
-                                {PITT_DIVERS.map((diver) => (
-                                    <option key={diver.id} value={diver.name}>
-                                        {diver.name}
+                            <div className="relative">
+                                <select
+                                    value={formData.Name}
+                                    onChange={(e) =>
+                                        setFormData((prev) => ({...prev, Name: e.target.value}))
+                                    }
+                                    disabled={loadingDivers}
+                                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                                        errors.name ? "border-red-500" : "border-gray-300"
+                                    } ${loadingDivers ? "bg-gray-100 cursor-not-allowed" : ""}`}
+                                >
+                                    <option value="">
+                                        {loadingDivers ? "Loading divers..." : "Select a diver..."}
                                     </option>
-                                ))}
-                            </select>
+                                    {divers.map((diver) => (
+                                        <option key={diver.id} value={diver.name}>
+                                            {diver.name}
+                                        </option>
+                                    ))}
+                                </select>
+                                {loadingDivers && (
+                                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                        <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                                    </div>
+                                )}
+                            </div>
+                            {diversError && (
+                                <div className="flex items-center justify-between">
+                                    <p className="text-red-500 text-sm">{diversError}</p>
+                                    <button
+                                        onClick={fetchDivers}
+                                        className="text-blue-600 hover:text-blue-800 text-sm underline"
+                                    >
+                                        Retry
+                                    </button>
+                                </div>
+                            )}
                             {errors.name && (
                                 <p className="text-red-500 text-sm">{errors.name}</p>
                             )}
