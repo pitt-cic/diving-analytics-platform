@@ -11,6 +11,7 @@ interface ConfirmedLog {
   s3Key?: string;
   s3Url?: string;
   url?: string; // Add url for image display
+  extractedData?: any; // Add extractedData for modal display
 }
 
 interface ConfirmedLogsSectionProps {
