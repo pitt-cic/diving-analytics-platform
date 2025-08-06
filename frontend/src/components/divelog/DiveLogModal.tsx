@@ -446,23 +446,31 @@ const DiveLogModal: React.FC<DiveLogModalProps> = ({
   // Helper to get the uploaded date in yyyy-mm-dd
   const getUploadedDate = () => {
     // 1. Use session_date if set
-    if (currentImage.session_date) return currentImage.session_date;
+    if (currentImage.session_date) {
+      // Parse YYYY-MM-DD format explicitly to avoid timezone issues
+      const [year, month, day] = currentImage.session_date
+        .split("-")
+        .map(Number);
+      const d = new Date(year, month - 1, day);
+      if (!isNaN(d.getTime())) return d.toLocaleDateString();
+      return currentImage.session_date;
+    }
     // 2. Use createdAt if available
     if (currentImage.createdAt) {
       const d = new Date(currentImage.createdAt);
-      if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+      if (!isNaN(d.getTime())) return d.toLocaleDateString();
     }
     // 3. Use updatedAt if available
     if (currentImage.updatedAt) {
       const d = new Date(currentImage.updatedAt);
-      if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+      if (!isNaN(d.getTime())) return d.toLocaleDateString();
     }
     // 4. Try to extract from image.id if it looks like a timestamp
     if (currentImage.id && /^\d{13}/.test(currentImage.id)) {
       const ts = parseInt(currentImage.id.split("-")[0], 10);
       if (!isNaN(ts)) {
         const d = new Date(ts);
-        return d.toISOString().slice(0, 10);
+        return d.toLocaleDateString();
       }
     }
     // 5. Fallback to today
@@ -776,22 +784,17 @@ const ConfirmedLogModal: React.FC<ConfirmedLogModalProps> = ({
   // Helper to get session date for display and CSV
   const getSessionDate = () => {
     let sessionDate = "";
-    if (log && (log as any).session_date)
+    // Only use session_date, don't fall back to other date fields
+    if (log && (log as any).session_date) {
       sessionDate = (log as any).session_date;
-    else if (log && (log as any).createdAt)
-      sessionDate = (log as any).createdAt;
-    else if (log && (log as any).updatedAt)
-      sessionDate = (log as any).updatedAt;
-    else if (log && (log as any).date) sessionDate = (log as any).date;
-    else sessionDate = "";
-    if (!sessionDate) {
-      // Debug: log the log object if session date is missing
-      // eslint-disable-next-line no-console
-      console.warn("No session date found on log:", log);
     }
     if (sessionDate) {
-      const d = new Date(sessionDate);
-      if (!isNaN(d.getTime())) sessionDate = d.toISOString().slice(0, 10);
+      // Parse YYYY-MM-DD format explicitly to avoid timezone issues
+      const [year, month, day] = sessionDate.split("-").map(Number);
+      const d = new Date(year, month - 1, day);
+      if (!isNaN(d.getTime())) {
+        sessionDate = d.toLocaleDateString();
+      }
     }
     return sessionDate;
   };
@@ -882,7 +885,7 @@ const ConfirmedLogModal: React.FC<ConfirmedLogModalProps> = ({
   };
 
   // Format date (fallback to empty string if not present)
-  const formattedDate = log.date || "";
+  // const formattedDate = log.date || "";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
@@ -899,16 +902,41 @@ const ConfirmedLogModal: React.FC<ConfirmedLogModalProps> = ({
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-xl font-semibold text-gray-900">
-                Image {currentLogIndex + 1} of {totalLogs}
+                {sessionDate ? (
+                  <span>{new Date(sessionDate).toLocaleDateString()}</span>
+                ) : (
+                  `Image ${currentLogIndex + 1} of ${totalLogs}`
+                )}
               </h3>
             </div>
             <div className="border rounded-lg overflow-hidden bg-gray-100">
-              {log.url && (
+              {log.url ? (
                 <img
                   src={log.url}
                   alt="Training sheet"
                   className="w-full h-96 object-contain"
                 />
+              ) : (
+                <div className="w-full h-96 flex items-center justify-center bg-gray-100">
+                  <div className="text-center text-gray-400">
+                    <svg
+                      className="w-16 h-16 mx-auto mb-4"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    <p className="text-sm font-medium">No Image Available</p>
+                    {/* <p className="text-xs text-gray-500 mt-1">
+                      Manual entry or processed log
+                    </p> */}
+                  </div>
+                </div>
               )}
             </div>
           </div>
@@ -972,7 +1000,7 @@ const ConfirmedLogModal: React.FC<ConfirmedLogModalProps> = ({
                   Session Date
                 </label>
                 <div className="font-semibold text-base text-gray-900">
-                  {sessionDate}
+                  {sessionDate || ""}
                 </div>
               </div>
             </div>

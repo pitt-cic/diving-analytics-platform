@@ -96,6 +96,7 @@ export interface DiveData {
   comment?: string;
   rating?: "green" | "yellow" | "red";
   balks?: number;
+  session_date?: string;
 }
 
 export interface DiverProfileProps {

@@ -45,12 +45,23 @@ function mapApiToConfirmedLog(item: any) {
   return {
     id: item.id,
     diverName: extractedData.Name,
-    date: item.updated_at ? new Date(item.updated_at).toLocaleDateString() : "",
+    date: item.session_date
+      ? (() => {
+          // Parse YYYY-MM-DD format explicitly to avoid timezone issues
+          const [year, month, day] = item.session_date.split("-").map(Number);
+          return new Date(year, month - 1, day).toLocaleDateString();
+        })()
+      : item.updated_at
+      ? new Date(item.updated_at).toLocaleDateString()
+      : "",
     totalDives: extractedData.Dives?.length || 0,
     balks: 0,
     fileName: item.s3_key || item.s3_url || item.id,
     s3Key: item.s3_key,
     s3Url: item.s3_url,
+    session_date: item.session_date || undefined,
+    createdAt: item.created_at || undefined,
+    updatedAt: item.updated_at || undefined,
     extractedData,
   };
 }
