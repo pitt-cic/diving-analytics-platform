@@ -20,9 +20,6 @@ const drillTypeMap: Record<string, string> = {
   UW: "Underwater",
 };
 
-// const drillTypeOptions = ["A", "TO", "CON", "S", "CO", "ADJ", "RIP", "UW"];
-const boardOptions = ["1M", "3M", "5M", "7.5M", "10M"];
-
 const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
   isOpen,
   onClose,
@@ -521,24 +518,18 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
                         )}
                       </td>
                       <td className="border border-gray-300 px-3 py-2 text-sm">
-                        <select
+                        <input
                           value={dive.Board}
                           onChange={(e) =>
                             updateDive(diveIndex, "Board", e.target.value)
                           }
+                          placeholder="e.g., 5m"
                           className={`w-full px-2 py-1 border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                             errors.diveFields?.[diveIndex]?.board
                               ? "border-red-500"
                               : ""
                           }`}
-                        >
-                          <option value="">Select board...</option>
-                          {boardOptions.map((board) => (
-                            <option key={board} value={board}>
-                              {board}
-                            </option>
-                          ))}
-                        </select>
+                        />
                         {errors.diveFields?.[diveIndex]?.board && (
                           <div className="text-red-500 text-xs mt-1">
                             {errors.diveFields[diveIndex].board}

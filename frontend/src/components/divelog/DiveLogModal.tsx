@@ -526,19 +526,17 @@ const DiveLogModal: React.FC<DiveLogModalProps> = ({
                   )}
                   {currentImage.isEditing ? "Cancel" : "Edit Data"}
                 </button>
-                <button
-                  onClick={onSave}
-                  className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                  style={{
-                    display: currentImage.isEditing ? undefined : "none",
-                  }}
-                  disabled={!isNameValid || !divesValid || !isRatingValid}
-                >
-                  <Check className="h-4 w-4" />
-                  Save
-                </button>
-                {/* Only show Accept when not editing */}
-                {!currentImage.isEditing && (
+                {/* Show Save when editing, Accept when not editing */}
+                {currentImage.isEditing ? (
+                  <button
+                    onClick={onSave}
+                    className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                    disabled={!isNameValid || !divesValid || !isRatingValid}
+                  >
+                    <Check className="h-4 w-4" />
+                    Save
+                  </button>
+                ) : (
                   <button
                     onClick={onAccept}
                     className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"

@@ -24,25 +24,30 @@ export const ConfirmedLogsSection: React.FC<ConfirmedLogsSectionProps> = ({
   confirmedLogs,
   currentConfirmedIndex,
   onOpenModal,
-}) => (
-  <div className="bg-white rounded-lg shadow p-4">
-    <h3 className="text-lg font-semibold text-gray-800 mb-2">
-      Recently Confirmed Logs
-    </h3>
-    {confirmedLogs.length > 0 ? (
-      <div className="flex gap-4 flex-nowrap overflow-x-auto pb-2">
-        {confirmedLogs.map((log, idx) => (
-          <div key={log.id} className="w-40 min-w-[10rem] flex-shrink-0">
-            <ConfirmedLogCard
-              log={log}
-              onClick={() => onOpenModal(idx)}
-              subtitleMode="diver"
-            />
-          </div>
-        ))}
-      </div>
-    ) : (
-      <div className="text-gray-400 text-sm">No confirmed logs</div>
-    )}
-  </div>
-);
+}) => {
+  // Show only the 10 most recent confirmed logs
+  const recentConfirmedLogs = confirmedLogs.slice(0, 10);
+
+  return (
+    <div className="bg-white rounded-lg shadow p-4">
+      <h3 className="text-lg font-semibold text-gray-800 mb-2">
+        Recently Confirmed Logs
+      </h3>
+      {recentConfirmedLogs.length > 0 ? (
+        <div className="flex gap-4 flex-nowrap overflow-x-auto pb-2">
+          {recentConfirmedLogs.map((log, idx) => (
+            <div key={log.id} className="w-40 min-w-[10rem] flex-shrink-0">
+              <ConfirmedLogCard
+                log={log}
+                onClick={() => onOpenModal(idx)}
+                subtitleMode="diver"
+              />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-gray-400 text-sm">No confirmed logs</div>
+      )}
+    </div>
+  );
+};
