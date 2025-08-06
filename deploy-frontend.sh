@@ -12,6 +12,15 @@ if ! command -v aws &> /dev/null; then
     exit 1
 fi
 
+# Check if zip is installed
+if ! command -v zip &> /dev/null; then
+    echo "zip could not be found. Please install it first."
+    echo "On Ubuntu/Debian: sudo apt-get install zip"
+    echo "On CentOS/RHEL: sudo yum install zip"
+    echo "On macOS: zip is usually pre-installed"
+    exit 1
+fi
+
 echo "Retrieving CloudFormation stack information..."
 
 # Get the Amplify App ID from CloudFormation outputs
@@ -37,21 +46,48 @@ fi
 echo "Found Amplify App ID: $APP_ID"
 echo "Using branch name: $BRANCH_NAME"
 
-# Check if build directory exists
-BUILD_DIR="./frontend/build"
-if [ ! -d "$BUILD_DIR" ]; then
-    echo "Error: Build directory not found at $BUILD_DIR"
-    echo "Building frontend..."
-    
-    # Navigate to frontend directory and build
-    cd "$(dirname "$0")/frontend"
-    npm run build
-    cd -
-    
-    if [ ! -d "$BUILD_DIR" ]; then
-        echo "Build failed or directory still not found."
+# Navigate to frontend directory for dependency and build management
+FRONTEND_DIR="$(dirname "$0")/frontend"
+echo "Navigating to frontend directory: $FRONTEND_DIR"
+
+if [ ! -d "$FRONTEND_DIR" ]; then
+    echo "Error: Frontend directory not found at $FRONTEND_DIR"
+    exit 1
+fi
+
+cd "$FRONTEND_DIR"
+
+# Check and install frontend dependencies
+echo "Checking frontend dependencies..."
+if [ ! -d "node_modules" ] || [ "package-lock.json" -nt "node_modules" ]; then
+    echo "Installing/updating dependencies..."
+    npm install
+    if [ $? -ne 0 ]; then
+        echo "Error: Failed to install dependencies"
         exit 1
     fi
+    echo "Dependencies installed successfully!"
+else
+    echo "Dependencies are up to date."
+fi
+
+# Always build the frontend
+echo "Building frontend..."
+npm run build
+if [ $? -ne 0 ]; then
+    echo "Error: Frontend build failed"
+    exit 1
+fi
+echo "Frontend build completed successfully!"
+
+# Return to original directory
+cd - > /dev/null
+
+# Set build directory path
+BUILD_DIR="./frontend/build"
+if [ ! -d "$BUILD_DIR" ]; then
+    echo "Error: Build directory not found at $BUILD_DIR after build"
+    exit 1
 fi
 
 echo "Deploying to Amplify App: $APP_ID, Branch: $BRANCH_NAME"

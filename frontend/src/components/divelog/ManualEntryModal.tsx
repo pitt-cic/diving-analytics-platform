@@ -1,7 +1,7 @@
-import React, { useState, useCallback } from "react";
-import { Plus, Trash2, Check } from "lucide-react";
-import { PITT_DIVERS } from "../../constants/pittDivers";
-import type { DiveEntry, DiveData } from "../../types/index";
+import React, { useState, useCallback, useEffect } from "react";
+import { Plus, Trash2, Check, Loader2 } from "lucide-react";
+import getAllDivers from "../../services/getAllDivers";
+import type { DiveEntry, DiveData, DiverFromAPI } from "../../types/index";
 
 interface ManualEntryModalProps {
   isOpen: boolean;
@@ -28,6 +28,10 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
   onClose,
   onSave,
 }) => {
+  const [divers, setDivers] = useState<DiverFromAPI[]>([]);
+  const [loadingDivers, setLoadingDivers] = useState(false);
+  const [diversError, setDiversError] = useState<string | null>(null);
+
   const [formData, setFormData] = useState<DiveData>({
     Name: "",
     Dives: [
@@ -58,10 +62,26 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
     };
   }>({});
 
-  // Clear errors when form data changes
-  // const clearErrors = useCallback(() => {
-  //   setErrors({});
-  // }, []);
+  // Fetch divers when modal opens
+  useEffect(() => {
+    if (isOpen && divers.length === 0) {
+      fetchDivers();
+    }
+  }, [isOpen, divers.length]);
+
+  const fetchDivers = async () => {
+    setLoadingDivers(true);
+    setDiversError(null);
+    try {
+      const diversData = await getAllDivers();
+      setDivers(diversData);
+    } catch (error) {
+      console.error("Error fetching divers:", error);
+      setDiversError("Failed to load divers. Please try again.");
+    } finally {
+      setLoadingDivers(false);
+    }
+  };
 
   // Validate a single field and update errors
   const validateField = useCallback(
@@ -72,8 +92,8 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
         if (field === "name") {
           if (!value.trim()) {
             newErrors.name = "Diver name is required";
-          } else if (!PITT_DIVERS.some((d) => d.name === value)) {
-            newErrors.name = "Diver name must match a valid Pitt diver";
+          } else if (!divers.some((d) => d.name === value)) {
+            newErrors.name = "Diver name must match a valid diver";
           } else {
             delete newErrors.name;
           }
@@ -134,7 +154,7 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
         return newErrors;
       });
     },
-    []
+    [divers]
   );
 
   // Reset form when modal opens
@@ -168,11 +188,11 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
         setErrors((prev) => ({ ...prev, name: "Diver name is required" }));
       } else if (
         formData.Name &&
-        !PITT_DIVERS.some((d) => d.name === formData.Name)
+        !divers.some((d) => d.name === formData.Name)
       ) {
         setErrors((prev) => ({
           ...prev,
-          name: "Diver name must match a valid Pitt diver",
+          name: "Diver name must match a valid diver",
         }));
       } else if (formData.Name) {
         setErrors((prev) => {
@@ -182,7 +202,7 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
         });
       }
     }
-  }, [isOpen, formData.Name]);
+  }, [isOpen, formData.Name, divers]);
 
   const updateDive = useCallback(
     (index: number, field: keyof DiveEntry, value: any) => {
@@ -260,8 +280,7 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
   const validateForm = (): boolean => {
     // Check all required fields
     const hasNameError =
-      !formData.Name.trim() ||
-      !PITT_DIVERS.some((d) => d.name === formData.Name);
+      !formData.Name.trim() || !divers.some((d) => d.name === formData.Name);
     const hasDiveErrors = formData.Dives.some(
       (dive) =>
         !dive.DiveCode.trim() || !dive.Board.trim() || !dive.DrillType.trim()
@@ -278,10 +297,6 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
   };
 
   if (!isOpen) return null;
-
-  // const isNameValid = !errors.name && formData.Name.trim() !== "";
-  // const divesValid = formData.Dives.length > 0 && !errors.diveFields;
-  // const isRatingValid = true; // Make rating optional for manual entries
 
   // Check if form is valid for save button
   const isFormValid = validateForm();
@@ -322,24 +337,45 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
               <label className="block font-medium text-gray-700">
                 Diver Name
               </label>
-              <select
-                value={formData.Name}
-                onChange={(e) => {
-                  setFormData((prev) => ({ ...prev, Name: e.target.value }));
-                  validateField("name", e.target.value);
-                }}
-                className={`w-full px-3 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.name ? "border-red-500" : ""
-                }`}
-                required
-              >
-                <option value="">Select Diver</option>
-                {PITT_DIVERS.map((diver) => (
-                  <option key={diver.id} value={diver.name}>
-                    {diver.name}
+              <div className="relative">
+                <select
+                  value={formData.Name}
+                  onChange={(e) => {
+                    setFormData((prev) => ({ ...prev, Name: e.target.value }));
+                    validateField("name", e.target.value);
+                  }}
+                  disabled={loadingDivers}
+                  className={`w-full px-3 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    errors.name ? "border-red-500" : ""
+                  } ${loadingDivers ? "bg-gray-100 cursor-not-allowed" : ""}`}
+                  required
+                >
+                  <option value="">
+                    {loadingDivers ? "Loading divers..." : "Select Diver"}
                   </option>
-                ))}
-              </select>
+                  {divers.map((diver) => (
+                    <option key={diver.id} value={diver.name}>
+                      {diver.name}
+                    </option>
+                  ))}
+                </select>
+                {loadingDivers && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                  </div>
+                )}
+              </div>
+              {diversError && (
+                <div className="flex items-center justify-between">
+                  <p className="text-red-500 text-sm">{diversError}</p>
+                  <button
+                    onClick={fetchDivers}
+                    className="text-blue-600 hover:text-blue-800 text-sm underline"
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
               {errors.name && (
                 <span className="text-red-500 text-xs mt-1">{errors.name}</span>
               )}
@@ -457,9 +493,9 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
                     <th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium text-gray-700">
                       Success Rate
                     </th>
-                    {/* <th className="border border-gray-300 px-2 py-2 text-sm w-12">
+                    <th className="border border-gray-300 px-2 py-2 text-sm w-12">
                       Action
-                    </th> */}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
