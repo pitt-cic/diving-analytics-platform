@@ -21,9 +21,13 @@ export class S3UploadService {
    * @param key - Optional custom key for the file (if not provided, will generate one)
    * @returns Promise<UploadResult>
    */
-  async uploadFile(file: File, key?: string): Promise<UploadResult> {
+  async uploadFile(
+    file: File,
+    key?: string,
+    isCompetition?: boolean
+  ): Promise<UploadResult> {
     try {
-      const fileKey = key || this.generateFileKey(file);
+      const fileKey = key || this.generateFileKey(file, isCompetition === true);
 
       await Storage.put(fileKey, file, {
         contentType: file.type,
@@ -70,11 +74,16 @@ export class S3UploadService {
    * @param file - The file to generate a key for
    * @returns string - The generated key
    */
-  private generateFileKey(file: File): string {
+  private generateFileKey(
+    file: File,
+    competitionSuffix: boolean = false
+  ): string {
     const timestamp = Date.now();
     const randomId = Math.random().toString(36).substring(2, 15);
     const fileExtension = file.name.split(".").pop() || "";
-    return `${timestamp}-${randomId}.${fileExtension}`;
+    const base = `${timestamp}-${randomId}`;
+    const suffix = competitionSuffix ? "_competition" : "";
+    return `${base}${suffix}.${fileExtension}`;
   }
 
   /**

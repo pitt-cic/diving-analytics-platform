@@ -86,6 +86,7 @@ export interface DiveEntry {
   DiveCode: string;
   DrillType: string;
   Board: string;
+  DegreeOfDifficulty?: string;
   Reps: string[];
   Success: string;
 }

@@ -30,13 +30,14 @@ export interface ConfirmedLog {
   createdAt?: string;
   updatedAt?: string;
   extractedData?: DiveData;
+  isCompetition?: boolean;
 }
 
 /**
  * Enhanced S3 key extraction with better error handling
  */
 export function extractS3KeyFromUrl(s3Url: string): string | null {
-  if (!s3Url || typeof s3Url !== 'string') {
+  if (!s3Url || typeof s3Url !== "string") {
     return null;
   }
 
@@ -54,13 +55,25 @@ export function extractS3KeyFromUrl(s3Url: string): string | null {
  * Mock data generator with improved randomization
  */
 export const generateMockData = (): DiveData => {
-  const randomDiver = PITT_DIVERS[Math.floor(Math.random() * PITT_DIVERS.length)];
-  const diveCodes = ["10B", "100B", "200B", "300B", "400B", "500B", "600", "300S"];
+  const randomDiver =
+    PITT_DIVERS[Math.floor(Math.random() * PITT_DIVERS.length)];
+  const diveCodes = [
+    "10B",
+    "100B",
+    "200B",
+    "300B",
+    "400B",
+    "500B",
+    "600",
+    "300S",
+  ];
   const drillTypes = ["A", "TO", "CON", "S", "CO", "ADJ", "RIP", "UW"];
   const boards = ["1M", "3M", "5M", "7.5M", "10M"];
 
   const generateReps = (count: number): string[] => {
-    return Array.from({ length: count }, () => Math.random() > 0.4 ? "O" : "X");
+    return Array.from({ length: count }, () =>
+      Math.random() > 0.4 ? "O" : "X"
+    );
   };
 
   const diveCount = Math.floor(Math.random() * 4) + 3;
@@ -90,7 +103,10 @@ export const generateMockData = (): DiveData => {
 /**
  * Parse JSON output with better error handling
  */
-export function parseJsonOutput(jsonOutput: any, fallbackData: Partial<DiveData> = {}): DiveData {
+export function parseJsonOutput(
+  jsonOutput: any,
+  fallbackData: Partial<DiveData> = {}
+): DiveData {
   const defaultData: DiveData = {
     Name: fallbackData.Name || "",
     Dives: [],
@@ -104,17 +120,30 @@ export function parseJsonOutput(jsonOutput: any, fallbackData: Partial<DiveData>
   }
 
   try {
-    const parsed = typeof jsonOutput === "string" ? JSON.parse(jsonOutput) : jsonOutput;
-    
+    const parsed =
+      typeof jsonOutput === "string" ? JSON.parse(jsonOutput) : jsonOutput;
+
     // Handle different API response formats
     const extractedData: DiveData = {
-      Name: parsed.Name || parsed.diver_info?.name || fallbackData.Name || "",
+      Name:
+        parsed.Name ||
+        parsed.diver_name ||
+        parsed.diver_info?.name ||
+        fallbackData.Name ||
+        "",
       Dives: (parsed.Dives || parsed.dives || []).map((d: any) => ({
-        DiveCode: d.dive_skill || d.code || d.DiveCode || "",
-        DrillType: d.area_of_dive || d.drillType || d.DrillType || "",
+        DiveCode: d.dive_code || d.dive_skill || d.code || d.DiveCode || "",
+        DrillType:
+          d.dive_type || d.area_of_dive || d.drillType || d.DrillType || "",
         Board: d.board || d.Board || "",
+        DegreeOfDifficulty:
+          d.degree_of_difficulty || d.DegreeOfDifficulty || d.difficulty || "",
         Reps: d.attempts || d.reps || d.Reps || [],
-        Success: d.success_rate || d.success || d.Success || "",
+        Success:
+          d.success_rate ||
+          d.success ||
+          d.Success ||
+          (Array.isArray(d.scores) ? d.scores.join(", ") : ""),
       })),
       comment: parsed.comment || fallbackData.comment || "",
       rating: parsed.rating || fallbackData.rating || undefined,
@@ -131,7 +160,9 @@ export function parseJsonOutput(jsonOutput: any, fallbackData: Partial<DiveData>
 /**
  * Enhanced API to ImageData mapper
  */
-export async function mapApiToImageDataWithSignedUrl(item: any): Promise<ImageData> {
+export async function mapApiToImageDataWithSignedUrl(
+  item: any
+): Promise<ImageData> {
   const s3Key = item.s3_url ? extractS3KeyFromUrl(item.s3_url) : null;
   let imageUrl = "";
 
@@ -150,7 +181,7 @@ export async function mapApiToImageDataWithSignedUrl(item: any): Promise<ImageDa
 
   return {
     id: item.id,
-    file: new File([], 'api-data'), // Create empty file for API data
+    file: new File([], "api-data"), // Create empty file for API data
     url: imageUrl,
     extractedData,
     isEditing: false,
@@ -175,6 +206,26 @@ export function mapApiToConfirmedLog(item: any): ConfirmedLog {
   };
 
   const extractedData = parseJsonOutput(item.json_output, fallbackData);
+
+  const lowerKey = `${item.s3_key || ""} ${item.s3_url || ""}`.toLowerCase();
+  const isCompetitionHeuristic =
+    lowerKey.includes("_competition") ||
+    (() => {
+      try {
+        const parsed =
+          typeof item.json_output === "string"
+            ? JSON.parse(item.json_output)
+            : item.json_output || {};
+        if (parsed?.is_competition === true) return true;
+        const dives = parsed?.dives || parsed?.Dives || [];
+        return (
+          Array.isArray(dives) &&
+          dives.some((d: any) => d?.dive_code || Array.isArray(d?.scores))
+        );
+      } catch {
+        return false;
+      }
+    })();
 
   // Parse date with better handling
   let displayDate = "";
@@ -207,6 +258,7 @@ export function mapApiToConfirmedLog(item: any): ConfirmedLog {
     createdAt: item.created_at || undefined,
     updatedAt: item.updated_at || undefined,
     extractedData,
+    isCompetition: isCompetitionHeuristic,
   };
 }
 
@@ -219,7 +271,7 @@ export async function mapConfirmedLogsWithData(
   pendingImages: ImageData[]
 ): Promise<(ConfirmedLog & { url?: string; extractedData?: DiveData })[]> {
   const allImages = [...reviewImages, ...pendingImages];
-  
+
   const mapped = await Promise.all(
     confirmedLogs.map(async (log) => {
       let url: string | undefined;
@@ -227,7 +279,7 @@ export async function mapConfirmedLogsWithData(
 
       // First, check if we have this image in our current data
       const foundImage = allImages.find((img) => img.id === log.id);
-      
+
       if (foundImage?.url) {
         url = foundImage.url;
         extractedData = foundImage.extractedData;
@@ -274,7 +326,9 @@ export async function mapConfirmedLogsWithData(
 /**
  * Batch process multiple items with error handling
  */
-export async function batchMapApiToImageData(items: any[]): Promise<ImageData[]> {
+export async function batchMapApiToImageData(
+  items: any[]
+): Promise<ImageData[]> {
   const results = await Promise.allSettled(
     items.map(mapApiToImageDataWithSignedUrl)
   );
@@ -283,7 +337,7 @@ export async function batchMapApiToImageData(items: any[]): Promise<ImageData[]>
   const failed: any[] = [];
 
   results.forEach((result, index) => {
-    if (result.status === 'fulfilled') {
+    if (result.status === "fulfilled") {
       successful.push(result.value);
     } else {
       failed.push({ item: items[index], error: result.reason });

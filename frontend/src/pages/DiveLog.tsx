@@ -1,27 +1,28 @@
-import React, { useContext, useRef, useState } from "react";
+import React, { useContext, useMemo, useRef, useState } from "react";
 import { Upload } from "lucide-react";
+import { TrophyIcon, BeakerIcon } from "@heroicons/react/24/outline";
 import Header from "../components/layout/Header";
 import { SidebarContext } from "../components/layout/AppLayout";
 import { PITT_DIVERS } from "../constants/pittDivers";
 import { PendingSection, ManualEntryModal } from "../components/divelog";
 import { ReviewSection } from "../components/divelog/ReviewSection";
 import { ConfirmedLogsSection } from "../components/divelog/ConfirmedLogsSection";
-import {
-  ConfirmedLogModal,
-  DiveLogModal,
-} from "../components/divelog/DiveLogModal";
+import { ConfirmedLogModal, DiveLogModal } from "../components/divelog";
 import type { DiveData, DiveEntry } from "../types/index";
 import { useDiveLogData } from "../hooks/useDiveLogData";
 
 const DiveLog: React.FC = () => {
   const { onOpenSidebar } = useContext(SidebarContext)!;
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Modal states
   const [modalOpen, setModalOpen] = useState(false);
   const [confirmedModalOpen, setConfirmedModalOpen] = useState(false);
   const [manualEntryModalOpen, setManualEntryModalOpen] = useState(false);
   const [currentConfirmedIndex, setCurrentConfirmedIndex] = useState(0);
+
+  // Mode: training or competition
+  const [mode, setMode] = useState<"training" | "competition">("training");
 
   // Use the custom hook for all data management
   const {
@@ -29,7 +30,7 @@ const DiveLog: React.FC = () => {
     reviewImages,
     confirmedLogsWithData,
     isLoading,
-    isRefetching,
+    isRefetching, // kept for future UI if needed
     uploadFiles,
     updateImageData,
     saveImageData,
@@ -39,10 +40,13 @@ const DiveLog: React.FC = () => {
     currentImageIndex,
     setCurrentImageIndex,
     error,
-  } = useDiveLogData();
+    isUploading,
+  } = useDiveLogData(mode);
 
   // Handle file upload
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const files = Array.from(event.target.files || []);
     if (files.length === 0) return;
 
@@ -83,7 +87,7 @@ const DiveLog: React.FC = () => {
       updates.session_date = value;
     } else if (diveIndex !== undefined) {
       const dive = { ...updatedData.Dives[diveIndex] };
-      
+
       if (repIndex !== undefined && field === "Reps") {
         dive.Reps = [...dive.Reps];
         dive.Reps[repIndex] = value;
@@ -95,13 +99,21 @@ const DiveLog: React.FC = () => {
         dive.DrillType = value;
       } else if (field === "Board") {
         dive.Board = value;
+      } else if (field === "DegreeOfDifficulty") {
+        dive.DegreeOfDifficulty = value;
+      } else if (field === "Success") {
+        // Allow free-form success/scores editing (used by competition mode)
+        dive.Success = value;
       }
-      
+
       updatedData.Dives = [...updatedData.Dives];
       updatedData.Dives[diveIndex] = dive;
     }
 
-    updateImageData(currentImage.id, { ...updates, extractedData: updatedData });
+    updateImageData(currentImage.id, {
+      ...updates,
+      extractedData: updatedData,
+    });
   };
 
   // Handle table data changes
@@ -139,7 +151,7 @@ const DiveLog: React.FC = () => {
       toggleEditMode();
     } catch (error: any) {
       console.error("Save error:", error);
-      alert("Failed to save training data. Please try again.");
+      alert("Failed to save data. Please try again.");
     }
   };
 
@@ -148,7 +160,11 @@ const DiveLog: React.FC = () => {
     const currentImage = reviewImages[currentImageIndex];
     if (!currentImage) return;
 
-    if (!window.confirm("Are you sure you want to delete this log? This action cannot be undone.")) {
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this log? This action cannot be undone."
+      )
+    ) {
       return;
     }
 
@@ -187,14 +203,15 @@ const DiveLog: React.FC = () => {
       alert("Manual training log saved successfully!");
     } catch (error: any) {
       console.error("Manual entry error:", error);
-      
-      let errorMessage = "Failed to save manual training log. Please try again.";
+
+      let errorMessage =
+        "Failed to save manual training log. Please try again.";
       if (error.message?.includes("Could not find diver ID")) {
         errorMessage = "Error: Could not find diver ID for the selected diver.";
       } else if (error.message?.includes("At least one valid dive")) {
         errorMessage = "Error: At least one valid dive is required.";
       }
-      
+
       alert(errorMessage);
     }
   };
@@ -204,6 +221,18 @@ const DiveLog: React.FC = () => {
     setCurrentImageIndex(idx);
     setModalOpen(true);
   };
+
+  const headerTitle = useMemo(
+    () => (mode === "competition" ? "Competition Log" : "Training Log"),
+    [mode]
+  );
+  const headerSubtitle = useMemo(
+    () =>
+      mode === "competition"
+        ? "Upload up to 10 images to extract competition sheet data"
+        : "Upload up to 10 images to extract training sheet data",
+    [mode]
+  );
 
   // Loading state
   if (isLoading) {
@@ -231,7 +260,7 @@ const DiveLog: React.FC = () => {
             />
           </svg>
           <div className="text-center text-gray-500 text-lg">
-            Loading training log...
+            Loading {mode} log...
           </div>
         </div>
       </div>
@@ -244,7 +273,7 @@ const DiveLog: React.FC = () => {
       <div className="p-8 flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="text-red-500 text-lg mb-4">
-            Error loading training data
+            Error loading {mode} data
           </div>
           <div className="text-gray-500">
             {error.message || "An unexpected error occurred"}
@@ -257,7 +286,7 @@ const DiveLog: React.FC = () => {
   const currentImage = reviewImages[currentImageIndex];
   let isNameValid = false;
   let nameError = "";
-  
+
   if (currentImage?.extractedData) {
     const name = currentImage.extractedData.Name?.trim();
     if (!name) {
@@ -272,17 +301,49 @@ const DiveLog: React.FC = () => {
   return (
     <>
       <Header
-        title="Training Log"
-        subtitle="Upload up to 10 images to extract training sheet data"
+        title={headerTitle}
+        subtitle={headerSubtitle}
         onOpenSidebar={onOpenSidebar}
       />
       <div className="p-8 max-w-7xl mx-auto bg-gray-50 min-h-screen">
         {/* Upload Interface */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-          <div className="border-2 border-dashed border-blue-300 rounded-lg p-12 text-center bg-blue-50 mb-4">
+        <div className="bg-white rounded-lg shadow p-4 mb-6">
+          {/* Mode Tabs (match DiverProfile) */}
+          <div className="mb-6 border-b border-gray-200 px-3 sm:px-4">
+            <nav
+              className="-mb-px flex justify-center sm:justify-start space-x-8"
+              aria-label="Tabs"
+            >
+              <button
+                onClick={() => setMode("training")}
+                className={`${
+                  mode === "training"
+                    ? "border-blue-500 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                } whitespace-nowrap py-3 px-2 border-b-2 font-medium text-sm flex items-center gap-2`}
+              >
+                <BeakerIcon className="h-5 w-5" />
+                Training
+              </button>
+              <button
+                onClick={() => setMode("competition")}
+                className={`${
+                  mode === "competition"
+                    ? "border-blue-500 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                } whitespace-nowrap py-3 px-2 border-b-2 font-medium text-sm flex items-center gap-2`}
+              >
+                <TrophyIcon className="h-5 w-5" />
+                Competition
+              </button>
+            </nav>
+          </div>
+          <div className="border-2 border-dashed border-blue-300 rounded-lg p-8 text-center bg-blue-50">
             <Upload className="mx-auto h-12 w-12 text-blue-400 mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Upload Training Sheets
+              {mode === "competition"
+                ? "Upload Competition Sheets"
+                : "Upload Training Sheets"}
             </h3>
             <p className="text-gray-500 mb-4">
               Select multiple images to process
@@ -299,16 +360,26 @@ const DiveLog: React.FC = () => {
               <button
                 onClick={() => fileInputRef.current?.click()}
                 className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium w-full sm:w-auto"
-                disabled={isRefetching}
+                disabled={isUploading}
               >
-                {isRefetching ? "Processing..." : "Choose Images"}
+                {isUploading ? "Uploading..." : "Choose Images"}
               </button>
-              <button
-                onClick={() => setManualEntryModalOpen(true)}
-                className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium w-full sm:w-auto"
-              >
-                Add Manually
-              </button>
+              {mode === "training" && (
+                <button
+                  onClick={() => setManualEntryModalOpen(true)}
+                  className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium w-full sm:w-auto"
+                >
+                  Add Manually
+                </button>
+              )}
+              {mode === "competition" && (
+                <button
+                  onClick={() => setManualEntryModalOpen(true)}
+                  className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium w-full sm:w-auto"
+                >
+                  Add Manually
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -346,6 +417,16 @@ const DiveLog: React.FC = () => {
           onTableDataChange={handleTableDataChange}
           isNameValid={isNameValid}
           nameError={nameError}
+          strictValidation={mode === "training"}
+          mode={mode}
+          onPrevImage={() => {
+            setCurrentImageIndex(Math.max(0, currentImageIndex - 1));
+          }}
+          onNextImage={() => {
+            setCurrentImageIndex(
+              Math.min(reviewImages.length - 1, currentImageIndex + 1)
+            );
+          }}
         />
 
         {/* Confirmed Logs Modal */}
@@ -356,6 +437,24 @@ const DiveLog: React.FC = () => {
             currentLogIndex={currentConfirmedIndex}
             totalLogs={confirmedLogsWithData.length}
             onClose={() => setConfirmedModalOpen(false)}
+            mode={mode}
+            onPrev={() =>
+              setCurrentConfirmedIndex((prev) => Math.max(0, prev - 1))
+            }
+            onNext={() =>
+              setCurrentConfirmedIndex((prev) =>
+                Math.min(
+                  Math.min(confirmedLogsWithData.length, 10) - 1,
+                  prev + 1
+                )
+              )
+            }
+            canPrev={currentConfirmedIndex > 0}
+            canNext={
+              currentConfirmedIndex <
+              Math.min(confirmedLogsWithData.length, 10) - 1
+            }
+            capAtTen={confirmedLogsWithData.length > 10}
           />
         )}
 
@@ -364,6 +463,7 @@ const DiveLog: React.FC = () => {
           isOpen={manualEntryModalOpen}
           onClose={() => setManualEntryModalOpen(false)}
           onSave={handleManualEntrySave}
+          mode={mode}
         />
       </div>
     </>
