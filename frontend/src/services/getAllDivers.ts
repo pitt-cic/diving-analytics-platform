@@ -1,6 +1,6 @@
-import { config } from "../config";
-import { Auth as Amplify } from "aws-amplify";
-import { DiverFromAPI } from "../types";
+import {config} from "../config";
+import {Auth as Amplify} from "aws-amplify";
+import {DiverFromAPI} from "../types";
 
 export default async function getAllDivers(): Promise<DiverFromAPI[]> {
   const session = await Amplify.currentSession();
@@ -13,7 +13,6 @@ export default async function getAllDivers(): Promise<DiverFromAPI[]> {
   if (!res.ok) {
     throw new Error(`Failed to fetch divers: ${res.status} ${res.statusText}`);
   }
-  
-  const divers = await res.json();
-  return divers;
+
+  return await res.json();
 }

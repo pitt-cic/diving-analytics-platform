@@ -15,13 +15,11 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
     public readonly dataAutomationProject: bedrock.CfnDataAutomationProject;
     public readonly invokeBdaFunction: lambda.Function;
 
-    // DynamoDB Tables
     public readonly diversTable: dynamodb.Table;
     public readonly competitionsTable: dynamodb.Table;
     public readonly resultsTable: dynamodb.Table;
     public readonly divesTable: dynamodb.Table;
 
-    // API Lambda functions
     public readonly getAllDiversFunction: lambda.Function;
     public readonly getDiverProfileFunction: lambda.Function;
     public readonly getDiverTrainingFunction: lambda.Function;
@@ -40,9 +38,11 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
             removalPolicy: cdk.RemovalPolicy.RETAIN,
             cors: [
                 {
-                    allowedMethods: [s3.HttpMethods.GET],
+                    allowedMethods: [s3.HttpMethods.GET, s3.HttpMethods.POST, s3.HttpMethods.PUT, s3.HttpMethods.DELETE],
                     allowedOrigins: ['*'],
                     allowedHeaders: ['*'],
+                    exposedHeaders: ['ETag'],
+                    maxAge: 3000,
                 },
             ],
         });

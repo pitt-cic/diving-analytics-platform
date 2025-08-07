@@ -4,7 +4,7 @@ import getTrainingDataByStatus from '../services/getTrainingDataByStatus';
 import updateTrainingData from '../services/updateTrainingData';
 import deleteTrainingData from '../services/deleteTrainingData';
 import { s3UploadService } from '../services/s3Upload';
-import { PITT_DIVERS } from '../constants/pittDivers';
+import getAllDivers from '../services/getAllDivers';
 import {
   ImageData,
   ConfirmedLog,
@@ -13,7 +13,7 @@ import {
   batchMapApiToImageData,
   generateMockData,
 } from '../services/dataFormatters';
-import type { DiveData } from '../types/index';
+import type { DiveData, DiverFromAPI } from '../types/index';
 
 interface UseDiveLogDataReturn {
   // Data
@@ -63,7 +63,22 @@ export function useDiveLogData(): UseDiveLogDataReturn {
   // Track if we should be polling (only when we have pending items)
   const shouldPollPending = pendingImages.length > 0;
   const shouldPollReview = pendingImages.length > 0; // Only poll review when we have pending items
+  // Divers state management
+  const [divers, setDivers] = useState<DiverFromAPI[]>([]);
 
+  // Fetch divers on hook initialization
+  useEffect(() => {
+    fetchDivers();
+  }, []);
+
+  const fetchDivers = async () => {
+    try {
+      const diversData = await getAllDivers();
+      setDivers(diversData);
+    } catch (error) {
+      console.error("Error fetching divers:", error);
+    }
+  };
   // Query for pending images - VERY conservative polling
   const {
     data: pendingData,
@@ -155,14 +170,16 @@ export function useDiveLogData(): UseDiveLogDataReturn {
 
   // Handle file uploads
   const uploadFiles = useCallback(async (files: File[]) => {
-    const newImages: ImageData[] = files.map((file, index) => ({
+    const newImages: ImageData[] = await Promise.all(
+      files.map(async (file, index) => ({
       id: `${Date.now()}-${index}`,
       file,
       url: URL.createObjectURL(file),
-      extractedData: generateMockData(),
+      extractedData: await generateMockData(),
       isEditing: false,
       uploadStatus: 'pending' as const,
-    }));
+    }))
+    );
 
     // Add to pending immediately for optimistic UI
     setPendingImages((prev) => [...prev, ...newImages]);
@@ -244,7 +261,7 @@ export function useDiveLogData(): UseDiveLogDataReturn {
       throw new Error('No image or extracted data to save');
     }
 
-    const diverObj = PITT_DIVERS.find((d) => d.name === image.extractedData.Name);
+    const diverObj = divers.find((d) => d.name === image.extractedData.Name);
     const diverId = diverObj?.id || '';
 
     const payload: any = {
@@ -262,7 +279,7 @@ export function useDiveLogData(): UseDiveLogDataReturn {
     
     // Invalidate queries to refetch data
     queryClient.invalidateQueries({ queryKey: QUERY_KEYS.review });
-  }, [reviewImages, queryClient]);
+  }, [reviewImages, queryClient, divers]);
 
   // Delete image
   const deleteImage = useCallback(async (imageId: string) => {
@@ -316,7 +333,7 @@ export function useDiveLogData(): UseDiveLogDataReturn {
 
   // Add manual entry
   const addManualEntry = useCallback(async (data: DiveData) => {
-    const diverObj = PITT_DIVERS.find((d) => d.name === data.Name);
+    const diverObj = divers.find((d) => d.name === data.Name);
     const diverId = diverObj?.id;
 
     if (!diverId) {
