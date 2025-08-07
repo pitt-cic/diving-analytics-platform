@@ -7,7 +7,7 @@ import {
 } from "@heroicons/react/24/outline";
 import getTrainingDataByStatus from "../../services/getTrainingDataByStatus";
 import { ConfirmedLogModal } from "../divelog/DiveLogModal";
-import { PITT_DIVERS } from "../../constants/pittDivers";
+import getAllDivers from "../../services/getAllDivers";
 import getPresignedUrl from "../../services/getPresignedUrl";
 import ConfirmedLogCard from "../common/ConfirmedLogCard";
 import TrainingCalendar from "./TrainingCalendar";
@@ -141,7 +141,22 @@ export const TrainingProfile: React.FC<TrainingProfileProps> = ({
   const [logsError, setLogsError] = React.useState<string | null>(null);
   const [modalOpen, setModalOpen] = React.useState(false);
   const [selectedLogIndex, setSelectedLogIndex] = React.useState(0);
+  // Divers state management
+  const [divers, setDivers] = React.useState<any[]>([]);
 
+  // Fetch divers on component mount
+  React.useEffect(() => {
+    fetchDivers();
+  }, []);
+
+  const fetchDivers = async () => {
+    try {
+      const diversData = await getAllDivers();
+      setDivers(diversData);
+    } catch (error) {
+      console.error("Error fetching divers:", error);
+    }
+  };
   // Extract diverName and diverId for useEffect dependencies
   const diverName = diverWithTraining.name;
   const diverId = (diverWithTraining as any).id;
@@ -155,8 +170,8 @@ export const TrainingProfile: React.FC<TrainingProfileProps> = ({
         // Fetch all confirmed logs using the raw API call
         const result = await getTrainingDataByStatus("CONFIRMED");
         const mapped = (result.data || []).map(mapApiToConfirmedLog);
-        // Find diver by id or name in PITT_DIVERS
-        const diverObj = PITT_DIVERS.find(
+        // Find diver by id or name in divers
+        const diverObj = divers.find(
           (d) => d.name === diverName || d.id === diverId
         );
         // Filter logs for this diver
@@ -206,7 +221,7 @@ export const TrainingProfile: React.FC<TrainingProfileProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [diverName, diverId]);
+  }, [diverName, diverId, divers]);
 
   // Calculate trainingStats from confirmedLogs (real backend data only)
   const totalSessions = confirmedLogs.length;

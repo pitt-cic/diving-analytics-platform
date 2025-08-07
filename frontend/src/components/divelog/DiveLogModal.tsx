@@ -1,9 +1,9 @@
-import React, { useMemo, useCallback, useState } from "react";
-import { X, Edit2, Check, AlertTriangle, Download, Trash2 } from "lucide-react";
-import { PITT_DIVERS } from "../../constants/pittDivers";
+import React, { useMemo, useCallback, useState, useEffect } from "react";
+import { X, Edit2, Check, AlertTriangle, Download, Trash2, Loader2 } from "lucide-react";
+import getAllDivers from "../../services/getAllDivers";
 import Papa from "papaparse";
 import { useTable, Column, Row } from "react-table";
-import type { DiveEntry, DiveData } from "../../types/index";
+import type { DiveEntry, DiveData, DiverFromAPI } from "../../types/index";
 import { UserIcon } from "@heroicons/react/24/outline";
 
 interface ImageData {
@@ -379,7 +379,28 @@ const DiveLogModal: React.FC<DiveLogModalProps> = ({
   isNameValid,
   nameError,
 }) => {
-  // Memoize the table data change handler (must be before any return)
+  // Divers state management
+  const [divers, setDivers] = useState<DiverFromAPI[]>([]);
+  const [loadingDivers, setLoadingDivers] = useState(false);
+
+  // Fetch divers when modal opens
+  useEffect(() => {
+    if (isOpen && divers.length === 0) {
+      fetchDivers();
+    }
+  }, [isOpen, divers.length]);
+
+  const fetchDivers = async () => {
+    setLoadingDivers(true);
+    try {
+      const diversData = await getAllDivers();
+      setDivers(diversData);
+    } catch (error) {
+      console.error("Error fetching divers:", error);
+    } finally {
+      setLoadingDivers(false);
+    }
+  };  // Memoize the table data change handler (must be before any return)
   const stableTableDataChange = useCallback(
     (newData: DiveEntry[]) => {
       onTableDataChange(newData);
@@ -558,13 +579,16 @@ const DiveLogModal: React.FC<DiveLogModalProps> = ({
                   <select
                     value={currentImage.extractedData.Name}
                     onChange={(e) => onDataEdit("Name", e.target.value)}
+                    disabled={loadingDivers}
                     className={`w-full px-3 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                       !isNameValid ? "border-red-500" : ""
                     }`}
                     required
                   >
-                    <option value="">Select Diver</option>
-                    {PITT_DIVERS.map((diver) => (
+                    <option value="">
+                      {loadingDivers ? "Loading divers..." : "Select Diver"}
+                    </option>
+                    {divers.map((diver) => (
                       <option key={diver.id} value={diver.name}>
                         {diver.name}
                       </option>

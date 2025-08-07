@@ -2,7 +2,7 @@ import React, { useContext, useRef, useState } from "react";
 import { Upload } from "lucide-react";
 import Header from "../components/layout/Header";
 import { SidebarContext } from "../components/layout/AppLayout";
-import { PITT_DIVERS } from "../constants/pittDivers";
+import getAllDivers from "../services/getAllDivers";
 import { PendingSection, ManualEntryModal } from "../components/divelog";
 import { ReviewSection } from "../components/divelog/ReviewSection";
 import { ConfirmedLogsSection } from "../components/divelog/ConfirmedLogsSection";
@@ -10,7 +10,7 @@ import {
   ConfirmedLogModal,
   DiveLogModal,
 } from "../components/divelog/DiveLogModal";
-import type { DiveData, DiveEntry } from "../types/index";
+import type { DiveData, DiveEntry, DiverFromAPI } from "../types/index";
 import { useDiveLogData } from "../hooks/useDiveLogData";
 
 const DiveLog: React.FC = () => {
@@ -22,6 +22,27 @@ const DiveLog: React.FC = () => {
   const [confirmedModalOpen, setConfirmedModalOpen] = useState(false);
   const [manualEntryModalOpen, setManualEntryModalOpen] = useState(false);
   const [currentConfirmedIndex, setCurrentConfirmedIndex] = useState(0);
+
+  // Divers state management
+  const [divers, setDivers] = useState<DiverFromAPI[]>([]);
+  const [loadingDivers, setLoadingDivers] = useState(false);
+
+  // Fetch divers on component mount
+  React.useEffect(() => {
+    fetchDivers();
+  }, []);
+
+  const fetchDivers = async () => {
+    setLoadingDivers(true);
+    try {
+      const diversData = await getAllDivers();
+      setDivers(diversData);
+    } catch (error) {
+      console.error("Error fetching divers:", error);
+    } finally {
+      setLoadingDivers(false);
+    }
+  };
 
   // Use the custom hook for all data management
   const {
@@ -262,8 +283,8 @@ const DiveLog: React.FC = () => {
     const name = currentImage.extractedData.Name?.trim();
     if (!name) {
       nameError = "Diver name is required";
-    } else if (!PITT_DIVERS.some((d) => d.name === name)) {
-      nameError = "Diver name must match a valid Pitt diver";
+    } else if (!divers.some((d) => d.name === name)) {
+      nameError = "Diver name must match a valid diver";
     } else {
       isNameValid = true;
     }
