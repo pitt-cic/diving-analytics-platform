@@ -14,36 +14,38 @@
 
 # Overview
 
-The Diving Analytics Platform is an AI-powered web application designed to revolutionize diving performance analysis for
-coaches, athletes, and sports analytics professionals. By leveraging AWS cloud services and advanced machine learning
-capabilities, the platform provides comprehensive insights into diving techniques, performance metrics, and training
-progress.
+The Diving Analytics Platform is an AI-powered solution designed to automate the time-consuming process of analyzing
+diving training data. By leveraging modern large language models (LLMs), the platform extracts and converts
+unstructured training notes into structured, actionable data.
+
+This project was initiated in response to a real-world challenge faced by the University of Pittsburgh’s diving team.
+Coaches and athletes were spending countless hours manually reviewing training session logs and then recording
+performance
+metrics in spreadsheets. To streamline this process, we developed a cloud-native application that integrates AWS
+services with modern AI capabilities.
+
+The result is a powerful platform that delivers deep insights into diving performance trends, and training
+progress, empowering coaches and athletes to focus more on performance improvement and less on data entry.
 
 # Description
 
 ## Problem
 
-Traditional diving performance analysis relies heavily on manual observation and subjective scoring, which presents
-several challenges:
-
-- **Limited Data Capture**: Manual methods cannot capture the granular details needed for comprehensive performance
-  analysis
-- **Time-Intensive Process**: Analyzing diving performance sheet and providing detailed feedback is extremely
-  time-consuming
-- **Lack of Historical Tracking**: Difficulty in tracking long-term progress and identifying performance trends
-- **Subjective Scoring**: Traditional scoring methods may lack the precision needed for elite-level training
-
-The sports analytics industry needs a solution that can provide objective, data-driven insights while reducing the time
-and effort required for comprehensive diving analysis.
+For Pitt’s diving team, training performance was initially recorded on paper during each session. After practice, the
+coach would spend hours manually transferring this data into a spreadsheet to track progress, which is an inefficient
+and repetitive process. Analyzing long-term performance trends was also challenging, as spreadsheets offered limited
+tools for comparing historical results across weeks or months. This time-intensive workflow also delayed feedback and
+relied heavily on subjective scoring. An automated, AI-powered system would eliminate the need for manual entry, improve
+data accuracy, and unlock more consistent, real-time insights for both coaches and athletes.
 
 ## Our Approach
 
 The Diving Analytics Platform addresses the challenges of traditional diving analysis through a comprehensive,
-AI-powered solution built on AWS cloud infrastructure. Our approach combines cutting-edge machine learning capabilities
+AI-powered solution built on AWS cloud infrastructure. Our approach combines cutting-edge AI capabilities
 with modern web technologies to deliver an intuitive, scalable platform for diving performance analysis.
 
 **Serverless AI Processing Pipeline**: We implemented a two-stage AI analysis system using Amazon Bedrock Data
-Automation for text extraction from diving score sheets and images, followed by Large Language Models to process the
+Automation for text extraction from diving scoresheets and images, followed by Large Language Models to process the
 extracted data into structured, diving-specific insights. This serverless approach ensures automatic scaling and
 cost-effectiveness while providing real-time analysis capabilities.
 
@@ -59,7 +61,7 @@ optimized querying patterns for diving analytics use cases.
 
 ## Architecture Diagram
 
-![Diving Analtics Platform Architecture](images/architecture.jpeg)
+![Diving Analytics Platform Architecture](images/architecture.jpeg)
 
 ## Functionality
 
@@ -68,11 +70,10 @@ The Diving Analytics Platform provides the following core capabilities:
 1. **Image Upload**: Secure upload of training sheet image for analysis
 2. **AI-Powered Analysis**: Analysis using Amazon Bedrock Data Automation and Amazon Bedrock LLMs
 3. **Performance Metrics**: Detailed scoring and performance indicators
-4. **Diver Profiles**: Comprehensive athlete profiles with historical data
-5. **Training Logs**: Digital dive logs with progress tracking
-6. **Competition Data**: Import and analyze competition results
-7. **Dashboard Analytics**: Visual representation of performance trends
-8. **Real-time Processing**: Live analysis status and notifications
+4. **Diver Profiles**: Comprehensive athlete profiles with historical training and competition data
+5. **Competition Data**: Import and analyze competition results
+6. **Dashboard Analytics**: Visual representation of performance trends
+7. **Real-time Processing**: Live analysis status
 
 ## Technologies
 
@@ -102,6 +103,81 @@ The Diving Analytics Platform provides the following core capabilities:
 - [Node.js](https://nodejs.org/) - Runtime Environment
 - [AWS CLI](https://aws.amazon.com/cli/) - Command Line Interface
 - [Jest](https://jestjs.io/) - Testing Framework
+
+# How to Use
+
+## 1. Access the Application
+
+Navigate to your deployed Amplify URL (provided in the deployment outputs):
+
+```
+https://main.<app-id>.amplifyapp.com
+```
+
+## 2. User Authentication
+
+### Sign In
+
+1. Enter your registered email and password
+2. Click "Sign In" to access the dashboard
+
+## 3. Dashboard Navigation
+
+The main dashboard provides:
+
+- **Overview Cards**: Quick stats on total dives, and average scores.
+- **Performance Charts**: Visual representation of diving performance over time
+- **Quick Actions**: View profiles, or access training logs
+
+## 4. Upload and Analyze Diving Content
+
+### Image Upload
+
+1. Navigate to the "Dive Log" section
+2. Select training scoresheet images from your device
+3. Click "Upload" to start the analysis process
+
+### Analysis Process
+
+1. **Processing**: AI analysis begins automatically after upload
+2. **Status Tracking**: Monitor analysis progress in real-time
+3. **Results**: View and edit extracted data from the uploaded image
+
+## 5. Diver Profiles
+
+### View Diver Information
+
+1. Navigate to "Divers" section
+2. Select a diver from the list
+3. View comprehensive profile including:
+    - Personal information
+    - Competition performance history, which can be filtered by dive code and boards
+    - Competition results
+
+### View Diver Training Analysis
+
+1. Navigate to "Divers" section
+2. Select a diver from the list
+3. Click on training tab
+4. View training data including:
+    - Number of training sessions
+    - Total Dives
+    - Average success rate
+
+## 6. Training Logs
+
+### Digital Dive Logs
+
+1. Access "Dive Log" section
+2. View a list of all training sessions with "Awaiting Review" and "Recently Confirmed Logs"
+3. Click on any picture
+4. Export data for external analysis
+
+### Training Data Management
+
+1. Review AI analysis results
+2. Approve or modify automated assessments
+3. Add manual notes and observations
 
 # Deployment
 
@@ -154,11 +230,11 @@ Before deploying the Diving Analytics Platform, ensure you have the following in
    ./deploy-backend.sh
    ```
    This script will:
-   - Check all prerequisites and detect correct directory
-   - Prompt you for the team number with validation
-   - Show deployment confirmation with AWS account details
-   - Install dependencies and build automatically
-   - Deploy all stacks and provide detailed status updates
+    - Check all prerequisites and detect the correct directory
+    - Prompt you for the team number with validation
+    - Show deployment confirmation with AWS account details
+    - Install dependencies and build automatically
+    - Deploy all stacks and provide detailed status updates
 
    **Manual CDK Commands**
    ```bash
@@ -170,7 +246,8 @@ Before deploying the Diving Analytics Platform, ensure you have the following in
    npx cdk deploy DivingAnalyticsFrontendStack
    ```
 
-   **Note**: A team number is required for deployment. The system will not work without a valid team number from the DiveMeets system.
+   **Note**: A team number is required for deployment. The system will not work without a valid team number from the
+   DiveMeets system.
 
 5. **Note the outputs**: After deployment, note the API Gateway URL and other outputs for frontend configuration.
 
@@ -178,17 +255,10 @@ Before deploying the Diving Analytics Platform, ensure you have the following in
 
 ### Method 1: Automatic Deployment (Recommended)
 
-1. **Build the frontend**:
-   ```bash
-   cd frontend
-   npm install
-   npm run build
-   ```
-
-2. **Deploy using the provided script**:
+1. **Deploy using the provided script**:
    ```bash
    cd ..
-   ./deploy.sh
+   ./deploy-frontend.sh
    ```
 
 The deployment script will:
@@ -215,7 +285,8 @@ The deployment script will:
 
 ### Team Number Configuration
 
-The platform is configured to import competition data for a specific diving team. A team number is required for the system to function properly.
+The platform is configured to import competition data for a specific diving team. A team number is required for the
+system to function properly.
 
 #### Finding Your Team Number
 
@@ -227,13 +298,16 @@ The platform is configured to import competition data for a specific diving team
 #### Configuration Methods
 
 **Method 1: Interactive Deployment Script (Recommended)**
+
 ```bash
 cd backend
 ./deploy-backend.sh
 ```
+
 This script provides a guided deployment experience with team number validation and confirmation.
 
 **Method 2: Deploy-time Configuration**
+
 ```bash
 # Deploy with a specific team number (required)
 npx cdk deploy --context teamNumber=<your_team_number_here>
@@ -242,23 +316,13 @@ npx cdk deploy --context teamNumber=<your_team_number_here>
 npx cdk deploy --all --context teamNumber=<your_team_number_here>
 ```
 
-**Method 3: Manual Configuration via AWS Console**
-1. Go to AWS Lambda Console
-2. Find the `ImportCompetitionDataFunction`
-3. Navigate to Configuration → Environment variables
-4. Add/modify `TEAM_NUMBER` with your team's number
-5. Save the changes
-
-**Method 4: Update CDK Code**
-1. Edit `lib/diving-analytics-backend-stack.ts`
-2. Change the value in: `TEAM_NUMBER: this.node.tryGetContext('teamNumber') || 'YOUR_TEAM_NUMBER'`
-3. Redeploy: `npx cdk deploy DivingAnalyticsBackendStack`
-
 #### Validation
 
-The system validates that the team number is numeric and will log which team number is being used during execution. Check CloudWatch logs for confirmation:
+The system validates that the team number is numeric and will log which team number is being used during execution.
+Check CloudWatch logs for confirmation:
+
 ```
-Starting diving data extraction for team number: 1234
+Starting diving data extraction for team number: <your_team_number>
 ```
 
 ### Other Environment Variables
@@ -266,10 +330,15 @@ Starting diving data extraction for team number: 1234
 1. **Frontend Environment Variables**:
    Create a `.env` file in the frontend directory:
    ```env
-   REACT_APP_API_URL=<API_GATEWAY_URL>
+   REACT_APP_API_ENDPOINT=<API_GATEWAY_URL>
    REACT_APP_AWS_REGION=<YOUR_AWS_REGION>
    REACT_APP_USER_POOL_ID=<COGNITO_USER_POOL_ID>
    REACT_APP_USER_POOL_CLIENT_ID=<COGNITO_CLIENT_ID>
+   REACT_APP_IDENTITY_POOL_ID=<COGNITO_IDENTITY_POOL_ID>
+   REACT_APP_MEDIA_BUCKET=<YOUR_INPUT_BUCKET_NAME>
+   REACT_APP_FEATURE_DIVEMEETS_INTEGRATION=false
+   REACT_APP_FEATURE_ANALYTICS_EXPORT=false
+   REACT_APP_USE_MOCK_DATA=false
    ```
 
 2. **Backend Environment Variables**:
@@ -291,113 +360,43 @@ Starting diving data extraction for team number: 1234
 ### Team Configuration Issues
 
 **Problem**: No divers found or incorrect team data
+
 - **Solution**: Verify the team number is correct by visiting the MeetControl website
 - **Check**: Ensure the team number is numeric (no letters or special characters)
 - **Verify**: Check CloudWatch logs for the message "Starting diving data extraction for team number: XXXX"
 
 **Problem**: Lambda function fails with team number error
+
 - **Solution**: The team number must be numeric and is required. Ensure TEAM_NUMBER environment variable is set
 - **Check**: Review the error message in CloudWatch logs for specific validation failures
 
 **Problem**: Deployment fails with "Team number is required" error
+
 - **Solution**: Provide team number during deployment: `npx cdk deploy --context teamNumber=<your_team_number_here>`
 - **Alternative**: Use the deployment script: `./deploy-backend.sh`
 
 ### Deployment Script Issues
 
 **Problem**: Script shows "Permission denied" error
+
 - **Solution**: Make the script executable: `chmod +x deploy-backend.sh`
 
 **Problem**: Script fails with "command not found" errors
+
 - **Solution**: Ensure prerequisites are installed:
-  - Node.js: `node --version`
-  - AWS CLI: `aws --version`
-  - CDK: `cdk --version`
+    - Node.js: `node --version`
+    - AWS CLI: `aws --version`
+    - CDK: `cdk --version`
 
 **Problem**: Script fails with AWS credential errors
+
 - **Solution**: Configure AWS credentials: `aws configure`
 - **Verify**: Test with `aws sts get-caller-identity`
 
 **Problem**: Script fails to find correct directory
-- **Solution**: The script can run from either the backend directory (`cd backend`) or the parent directory containing the backend folder
 
-# How to Use
-
-## 1. Access the Application
-
-Navigate to your deployed Amplify URL (provided in the deployment outputs):
-
-```
-https://main.<app-id>.amplifyapp.com
-```
-
-## 2. User Authentication
-
-### Sign In
-
-1. Enter your registered email and password
-2. Click "Sign In" to access the dashboard
-
-## 3. Dashboard Navigation
-
-The main dashboard provides:
-
-- **Overview Cards**: Quick stats on total dives, average scores, and recent activity
-- **Performance Charts**: Visual representation of diving performance over time
-- **Recent Activity**: Latest dive logs and analysis results
-- **Quick Actions**: View profiles, or access training logs
-
-## 4. Upload and Analyze Diving Content
-
-### Image Upload
-
-1. Navigate to the "Dive Log" section
-2. Select diving images from your device
-3. Click "Upload" to start the analysis process
-
-### Analysis Process
-
-1. **Processing**: AI analysis begins automatically after upload
-2. **Status Tracking**: Monitor analysis progress in real-time
-3. **Results**: View detailed analysis results including:
-    - Technical scores
-    - Form analysis
-    - Improvement suggestions
-    - Comparison with previous performances
-
-## 5. Diver Profiles
-
-### View Diver Information
-
-1. Navigate to "Divers" section
-2. Select a diver from the list
-3. View comprehensive profile including:
-    - Personal information
-    - Performance history
-    - Training progress
-    - Competition results
-
-### Manage Profiles
-
-1. Add new divers with personal and performance data
-2. Update existing profiles with new information
-3. Track long-term progress and improvements
-
-## 6. Training Logs
-
-### Digital Dive Logs
-
-1. Access "Dive Log" section
-2. View chronological list of all dives
-3. Filter by diver, date, or dive type
-4. Export data for external analysis
-
-### Training Data Management
-
-1. Review AI analysis results
-2. Approve or modify automated assessments
-3. Add manual notes and observations
-4. Track training progression over time
+- **Solution**: The script can run from either the backend directory (`cd backend`) or the parent directory containing
+  the backend folder
 
 # Technical Architecture
 
