@@ -7,12 +7,13 @@ import {
 } from "@heroicons/react/24/outline";
 import getTrainingDataByStatus from "../../services/getTrainingDataByStatus";
 import { ConfirmedLogModal } from "../divelog";
-import { PITT_DIVERS } from "../../constants/pittDivers";
+import getAllDivers from "../../services/getAllDivers";
 import ConfirmedLogCard from "../common/ConfirmedLogCard";
 import TrainingCalendar from "./TrainingCalendar";
 import { mapApiToConfirmedLog as mapApiToConfirmedLogService } from "../../services/dataFormatters";
 
 // Copy of mapApiToConfirmedLog from DiveLog
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function mapApiToConfirmedLog(item: any) {
   let extractedData = {
     Name: item.diver_name || "",
@@ -141,7 +142,22 @@ export const TrainingProfile: React.FC<TrainingProfileProps> = ({
   const [logsError, setLogsError] = React.useState<string | null>(null);
   const [modalOpen, setModalOpen] = React.useState(false);
   const [selectedLogIndex, setSelectedLogIndex] = React.useState(0);
+  // Divers state management
+  const [divers, setDivers] = React.useState<any[]>([]);
 
+  // Fetch divers on component mount
+  React.useEffect(() => {
+    fetchDivers();
+  }, []);
+
+  const fetchDivers = async () => {
+    try {
+      const diversData = await getAllDivers();
+      setDivers(diversData);
+    } catch (error) {
+      console.error("Error fetching divers:", error);
+    }
+  };
   // Competition logs state
   const [competitionLogs, setCompetitionLogs] = React.useState<any[]>([]);
   const [loadingCompetition, setLoadingCompetition] = React.useState(true);
@@ -159,7 +175,6 @@ export const TrainingProfile: React.FC<TrainingProfileProps> = ({
     React.useState(INITIAL_VISIBLE);
   const [competitionVisibleCount, setCompetitionVisibleCount] =
     React.useState(INITIAL_VISIBLE);
-
   // Extract diverName and diverId for useEffect dependencies
   const diverName = diverWithTraining.name;
   const diverId = (diverWithTraining as any).id;
@@ -174,17 +189,11 @@ export const TrainingProfile: React.FC<TrainingProfileProps> = ({
         const result = await getTrainingDataByStatus("CONFIRMED");
         // Use shared mapper that sets isCompetition
         const mapped = (result.data || []).map(mapApiToConfirmedLogService);
-        // Find diver by id or name in PITT_DIVERS
-        const diverObj = PITT_DIVERS.find(
-          (d) => d.name === diverName || d.id === diverId
-        );
-        // Filter logs for this diver and exclude competition logs for training list
-        let filtered = mapped.filter((log: any) => {
-          const matchesDiver =
-            diverObj && log.extractedData?.Name
-              ? log.extractedData.Name.trim().toLowerCase() ===
-                diverObj.name.trim().toLowerCase()
-              : false;
+        // Filter logs by name directly (case-insensitive) and exclude competition for training list
+        const filtered = mapped.filter((log: any) => {
+          const ln = (log.extractedData?.Name || "").trim().toLowerCase();
+          const dn = (diverName || "").trim().toLowerCase();
+          const matchesDiver = ln !== "" && ln === dn;
           const isCompetition = log.isCompetition === true;
           return matchesDiver && !isCompetition;
         });
@@ -209,13 +218,13 @@ export const TrainingProfile: React.FC<TrainingProfileProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [diverName, diverId]);
+  }, [diverName, diverId, divers]);
 
   // Reset visible counts when diver changes
   React.useEffect(() => {
     setTrainingVisibleCount(INITIAL_VISIBLE);
     setCompetitionVisibleCount(INITIAL_VISIBLE);
-  }, [diverName, diverId]);
+  }, [diverName, diverId, divers]);
 
   // Fetch confirmed competition logs for this diver
   React.useEffect(() => {
@@ -226,17 +235,11 @@ export const TrainingProfile: React.FC<TrainingProfileProps> = ({
       try {
         const result = await getTrainingDataByStatus("CONFIRMED");
         const mapped = (result.data || []).map(mapApiToConfirmedLogService);
-        // Find diver by id or name in PITT_DIVERS
-        const diverObj = PITT_DIVERS.find(
-          (d) => d.name === diverName || d.id === diverId
-        );
-        // Filter logs for this diver and competition only
-        let filtered = mapped.filter((log: any) => {
-          const matchesDiver =
-            diverObj && log.extractedData?.Name
-              ? log.extractedData.Name.trim().toLowerCase() ===
-                diverObj.name.trim().toLowerCase()
-              : false;
+        // Filter logs by name directly (case-insensitive) and competition only
+        const filtered = mapped.filter((log: any) => {
+          const ln = (log.extractedData?.Name || "").trim().toLowerCase();
+          const dn = (diverName || "").trim().toLowerCase();
+          const matchesDiver = ln !== "" && ln === dn;
           const isCompetition = log.isCompetition === true;
           return matchesDiver && isCompetition;
         });

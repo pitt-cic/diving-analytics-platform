@@ -3,12 +3,16 @@ import { Upload } from "lucide-react";
 import { TrophyIcon, BeakerIcon } from "@heroicons/react/24/outline";
 import Header from "../components/layout/Header";
 import { SidebarContext } from "../components/layout/AppLayout";
-import { PITT_DIVERS } from "../constants/pittDivers";
+import getAllDivers from "../services/getAllDivers";
 import { PendingSection, ManualEntryModal } from "../components/divelog";
 import { ReviewSection } from "../components/divelog/ReviewSection";
 import { ConfirmedLogsSection } from "../components/divelog/ConfirmedLogsSection";
 import { ConfirmedLogModal, DiveLogModal } from "../components/divelog";
-import type { DiveData, DiveEntry } from "../types/index";
+import {
+  type DiveData,
+  type DiveEntry,
+  type DiverFromAPI,
+} from "../types/index";
 import { useDiveLogData } from "../hooks/useDiveLogData";
 
 const DiveLog: React.FC = () => {
@@ -23,6 +27,24 @@ const DiveLog: React.FC = () => {
 
   // Mode: training or competition
   const [mode, setMode] = useState<"training" | "competition">("training");
+  // Divers state (if needed later)
+  const [divers, setDivers] = useState<DiverFromAPI[]>([]);
+  // const [loadingDivers, setLoadingDivers] = useState(false);
+
+  React.useEffect(() => {
+    const fetchDivers = async () => {
+      // setLoadingDivers(true);
+      try {
+        const diversData = await getAllDivers();
+        setDivers(diversData);
+      } catch (error) {
+        console.error("Error fetching divers:", error);
+      } finally {
+        // setLoadingDivers(false);
+      }
+    };
+    fetchDivers();
+  }, []);
 
   // Use the custom hook for all data management
   const {
@@ -30,7 +52,7 @@ const DiveLog: React.FC = () => {
     reviewImages,
     confirmedLogsWithData,
     isLoading,
-    isRefetching, // kept for future UI if needed
+    // isRefetching, // kept for future UI if needed
     uploadFiles,
     updateImageData,
     saveImageData,
@@ -291,8 +313,8 @@ const DiveLog: React.FC = () => {
     const name = currentImage.extractedData.Name?.trim();
     if (!name) {
       nameError = "Diver name is required";
-    } else if (!PITT_DIVERS.some((d) => d.name === name)) {
-      nameError = "Diver name must match a valid Pitt diver";
+    } else if (!divers.some((d) => d.name === name)) {
+      nameError = "Diver name must match a valid diver";
     } else {
       isNameValid = true;
     }

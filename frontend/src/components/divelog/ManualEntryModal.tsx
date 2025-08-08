@@ -270,6 +270,7 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
     [validateField]
   );
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const addDive = useCallback(() => {
     setFormData((prev) => ({
       ...prev,
@@ -295,6 +296,7 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
     });
   }, [mode]);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const removeDive = useCallback(
     (index: number) => {
       setFormData((prev) => {

@@ -1,5 +1,5 @@
 import getPresignedUrl from "./getPresignedUrl";
-import { PITT_DIVERS } from "../constants/pittDivers";
+import getAllDivers from "./getAllDivers";
 import type { DiveData } from "../types/index";
 
 export interface ImageData {
@@ -54,9 +54,17 @@ export function extractS3KeyFromUrl(s3Url: string): string | null {
 /**
  * Mock data generator with improved randomization
  */
-export const generateMockData = (): DiveData => {
-  const randomDiver =
-    PITT_DIVERS[Math.floor(Math.random() * PITT_DIVERS.length)];
+export const generateMockData = async (): Promise<DiveData> => {
+  let divers;
+  try {
+    divers = await getAllDivers();
+  } catch (error) {
+    console.error("Error fetching divers for mock data:", error);
+    // Fallback to a default diver if API fails
+    divers = [{ id: "1", name: "Test Diver" }];
+  }
+
+  const randomDiver = divers[Math.floor(Math.random() * divers.length)];
   const diveCodes = [
     "10B",
     "100B",
@@ -123,7 +131,7 @@ export function parseJsonOutput(
     const parsed =
       typeof jsonOutput === "string" ? JSON.parse(jsonOutput) : jsonOutput;
 
-    // Handle different API response formats
+    // Handle different API response formats, including competition shape
     const extractedData: DiveData = {
       Name:
         parsed.Name ||
@@ -181,7 +189,7 @@ export async function mapApiToImageDataWithSignedUrl(
 
   return {
     id: item.id,
-    file: new File([], "api-data"), // Create empty file for API data
+    file: new File([], "api-data"),
     url: imageUrl,
     extractedData,
     isEditing: false,
@@ -210,6 +218,8 @@ export function mapApiToConfirmedLog(item: any): ConfirmedLog {
   const lowerKey = `${item.s3_key || ""} ${item.s3_url || ""}`.toLowerCase();
   const isCompetitionHeuristic =
     lowerKey.includes("_competition") ||
+    lowerKey.includes("competition") ||
+    lowerKey.includes("meet") ||
     (() => {
       try {
         const parsed =
@@ -250,7 +260,7 @@ export function mapApiToConfirmedLog(item: any): ConfirmedLog {
     diverName: extractedData.Name,
     date: displayDate,
     totalDives: extractedData.Dives?.length || 0,
-    balks: 0, // Removed from ConfirmedLog interface
+    balks: 0,
     fileName: item.s3_key || item.s3_url || item.id,
     s3Key: item.s3_key,
     s3Url: item.s3_url,

@@ -4,7 +4,7 @@ import getTrainingDataByStatus from "../services/getTrainingDataByStatus";
 import updateTrainingData from "../services/updateTrainingData";
 import deleteTrainingData from "../services/deleteTrainingData";
 import { s3UploadService } from "../services/s3Upload";
-import { PITT_DIVERS } from "../constants/pittDivers";
+import getAllDivers from "../services/getAllDivers";
 import {
   ImageData,
   ConfirmedLog,
@@ -13,7 +13,7 @@ import {
   batchMapApiToImageData,
   generateMockData,
 } from "../services/dataFormatters";
-import type { DiveData } from "../types/index";
+import type { DiveData, DiverFromAPI } from "../types/index";
 
 type UploadMode = "training" | "competition";
 
@@ -82,7 +82,22 @@ export function useDiveLogData(
   // Track if we should be polling (only when we have pending items)
   const shouldPollPending = pendingImages.length > 0;
   const shouldPollReview = pendingImages.length > 0; // Only poll review when we have pending items
+  // Divers state management
+  const [divers, setDivers] = useState<DiverFromAPI[]>([]);
 
+  // Fetch divers on hook initialization
+  useEffect(() => {
+    fetchDivers();
+  }, []);
+
+  const fetchDivers = async () => {
+    try {
+      const diversData = await getAllDivers();
+      setDivers(diversData);
+    } catch (error) {
+      console.error("Error fetching divers:", error);
+    }
+  };
   // Query for pending images - VERY conservative polling
   const {
     data: pendingData,
@@ -204,14 +219,16 @@ export function useDiveLogData(
   const uploadFiles = useCallback(
     async (files: File[]) => {
       setIsUploading(true);
-      const newImages: ImageData[] = files.map((file, index) => ({
-        id: `${Date.now()}-${index}`,
-        file,
-        url: URL.createObjectURL(file),
-        extractedData: generateMockData(),
-        isEditing: false,
-        uploadStatus: "pending" as const,
-      }));
+      const newImages: ImageData[] = await Promise.all(
+        files.map(async (file, index) => ({
+          id: `${Date.now()}-${index}`,
+          file,
+          url: URL.createObjectURL(file),
+          extractedData: await generateMockData(),
+          isEditing: false,
+          uploadStatus: "pending" as const,
+        }))
+      );
 
       // Add to pending immediately for optimistic UI
       setPendingImages((prev) => [...prev, ...newImages]);
@@ -283,7 +300,7 @@ export function useDiveLogData(
       }, 2000);
       setIsUploading(false);
     },
-    [queryClient, mode]
+    [queryClient, mode, QUERY_KEYS.pending]
   );
 
   // Update image data
@@ -304,9 +321,7 @@ export function useDiveLogData(
         throw new Error("No image or extracted data to save");
       }
 
-      const diverObj = PITT_DIVERS.find(
-        (d) => d.name === image.extractedData.Name
-      );
+      const diverObj = divers.find((d) => d.name === image.extractedData.Name);
       const diverId = diverObj?.id || "";
 
       // Shape updated_json based on mode
@@ -346,7 +361,7 @@ export function useDiveLogData(
       // Invalidate queries to refetch data
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.review });
     },
-    [reviewImages, queryClient, mode]
+    [reviewImages, queryClient, mode, divers, QUERY_KEYS.review]
   );
 
   // Delete image
@@ -360,7 +375,7 @@ export function useDiveLogData(
       // Invalidate queries
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.review });
     },
-    [queryClient]
+    [queryClient, QUERY_KEYS.review]
   );
 
   // Confirm image (move to confirmed)
@@ -403,13 +418,21 @@ export function useDiveLogData(
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.confirmed });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.review });
     },
-    [reviewImages, currentImageIndex, saveImageData, queryClient]
+    [
+      reviewImages,
+      currentImageIndex,
+      saveImageData,
+      queryClient,
+      QUERY_KEYS.confirmed,
+      QUERY_KEYS.review,
+      mode,
+    ]
   );
 
   // Add manual entry
   const addManualEntry = useCallback(
     async (data: DiveData) => {
-      const diverObj = PITT_DIVERS.find((d) => d.name === data.Name);
+      const diverObj = divers.find((d) => d.name === data.Name);
       const diverId = diverObj?.id;
 
       if (!diverId) {
@@ -502,7 +525,7 @@ export function useDiveLogData(
       // Invalidate queries
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.confirmed });
     },
-    [queryClient, mode]
+    [queryClient, mode, divers, QUERY_KEYS.confirmed]
   );
 
   // Compute loading and error states

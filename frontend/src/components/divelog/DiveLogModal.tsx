@@ -9,13 +9,13 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { PITT_DIVERS } from "../../constants/pittDivers";
 import Papa from "papaparse";
-import type { DiveEntry, DiveData } from "../../types/index";
+import type { DiveEntry, DiveData, DiverFromAPI } from "../../types/index";
 import { UserIcon } from "@heroicons/react/24/outline";
 import CompetitionTable from "./CompetitionTable";
 import CSVTable from "./CSVTable";
 import { validateDives } from "./utils";
+import getAllDivers from "../../services/getAllDivers";
 
 interface ImageData {
   id: string;
@@ -397,41 +397,17 @@ const DiveLogModal: React.FC<DiveLogModalProps> = ({
                 )}
               </div>
               {/* Diver Name */}
-              <div className="space-y-4">
+              <div className="space-y-4 mb-6">
                 <div className="space-y-2">
                   <label className="block font-medium text-gray-700">
                     Diver Name
                   </label>
                   {currentImage.isEditing ? (
-                    <div className="relative">
-                      <select
-                        value={currentImage.extractedData.Name}
-                        onChange={(e) => onDataEdit("Name", e.target.value)}
-                        className={`w-full appearance-none px-3 pr-9 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                          !isNameValid ? "border-red-500" : ""
-                        }`}
-                        required
-                      >
-                        <option value="">Select Diver</option>
-                        {PITT_DIVERS.map((diver) => (
-                          <option key={diver.id} value={diver.name}>
-                            {diver.name}
-                          </option>
-                        ))}
-                      </select>
-                      <svg
-                        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                        aria-hidden="true"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    </div>
+                    <DiverSelect
+                      value={currentImage.extractedData.Name}
+                      onChange={(val) => onDataEdit("Name", val)}
+                      isInvalid={!isNameValid}
+                    />
                   ) : (
                     <div className="flex items-center gap-2 font-semibold text-base text-gray-900">
                       {isNameValid ? (
@@ -607,3 +583,62 @@ const DiveLogModal: React.FC<DiveLogModalProps> = ({
 };
 
 export { DiveLogModal };
+
+// Local component to fetch and render divers dynamically
+const DiverSelect: React.FC<{
+  value: string;
+  onChange: (val: string) => void;
+  isInvalid?: boolean;
+}> = ({ value, onChange, isInvalid }) => {
+  const [divers, setDivers] = React.useState<DiverFromAPI[]>([]);
+  const [loading, setLoading] = React.useState<boolean>(false);
+  React.useEffect(() => {
+    let mounted = true;
+    (async () => {
+      setLoading(true);
+      try {
+        const data = await getAllDivers();
+        if (mounted) setDivers(data);
+      } catch (e) {
+        // noop
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  return (
+    <div className="relative">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={`w-full appearance-none px-3 pr-9 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+          isInvalid ? "border-red-500" : ""
+        }`}
+        required
+      >
+        <option value="">{loading ? "Loading..." : "Select Diver"}</option>
+        {divers.map((diver) => (
+          <option key={diver.id} value={diver.name}>
+            {diver.name}
+          </option>
+        ))}
+      </select>
+      <svg
+        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500"
+        viewBox="0 0 20 20"
+        fill="currentColor"
+        aria-hidden="true"
+      >
+        <path
+          fillRule="evenodd"
+          d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z"
+          clipRule="evenodd"
+        />
+      </svg>
+    </div>
+  );
+};
