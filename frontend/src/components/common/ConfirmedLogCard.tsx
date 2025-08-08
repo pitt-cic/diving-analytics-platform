@@ -1,10 +1,53 @@
 import React from "react";
+import getPresignedUrl from "../../services/getPresignedUrl";
 
 const ConfirmedLogCard: React.FC<{
   log: any;
   onClick: () => void;
   subtitleMode?: "diver" | "dives";
 }> = ({ log, onClick, subtitleMode = "diver" }) => {
+  const containerRef = React.useRef<HTMLButtonElement | null>(null);
+  const [resolvedUrl, setResolvedUrl] = React.useState<string | undefined>(
+    log.url
+  );
+  const [hasTried, setHasTried] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!containerRef.current || hasTried || resolvedUrl) return;
+    const el = containerRef.current;
+    const observer = new IntersectionObserver(
+      async (entries) => {
+        if (entries[0].isIntersecting) {
+          setHasTried(true);
+          try {
+            let url: string | undefined;
+            if (log.s3Key) {
+              const signed = await getPresignedUrl(log.s3Key);
+              url = signed ?? undefined;
+            } else if (log.s3Url) {
+              try {
+                const u = new URL(log.s3Url);
+                const key: string = u.pathname.startsWith("/")
+                  ? u.pathname.slice(1)
+                  : u.pathname;
+                const signed = await getPresignedUrl(key);
+                url = signed ?? undefined;
+              } catch {
+                // Not a URL; try as key directly
+                const signed = await getPresignedUrl(String(log.s3Url || ""));
+                url = signed ?? undefined;
+              }
+            }
+            if (url) setResolvedUrl(url);
+          } catch {}
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "100px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [log.s3Key, log.s3Url, hasTried, resolvedUrl]);
   // Get date from various possible sources
   const getDateStr = () => {
     console.log("[DEBUG] ConfirmedLogCard processing log:", {
@@ -62,13 +105,15 @@ const ConfirmedLogCard: React.FC<{
     <button
       className="relative w-full h-40 rounded-lg overflow-hidden shadow border border-blue-100 group focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
       onClick={onClick}
+      ref={containerRef}
       style={{ minHeight: 160 }}
     >
-      {log.url ? (
+      {resolvedUrl ? (
         <img
-          src={log.url}
+          src={resolvedUrl}
           alt="Training sheet preview"
           className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+          loading="lazy"
         />
       ) : (
         <div className="absolute inset-0 w-full h-full bg-gray-200 flex items-center justify-center text-gray-400">

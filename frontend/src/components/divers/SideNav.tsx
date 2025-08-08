@@ -114,9 +114,11 @@ export const SideNav: React.FC<SideNavProps> = ({
                 })()}
               </div>
               {isOpen && (
-                <div className="ml-3 text-left">
-                  <p className="font-medium">{diver.name}</p>
-                  <p className="text-xs text-gray-500">{diver.city_state}</p>
+                <div className="ml-3 text-left min-w-0">
+                  <p className="font-medium truncate">{diver.name}</p>
+                  <p className="text-xs text-gray-500 truncate">
+                    {diver.city_state}
+                  </p>
                 </div>
               )}
             </Link>

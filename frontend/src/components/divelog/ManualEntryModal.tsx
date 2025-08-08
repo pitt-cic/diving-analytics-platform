@@ -1,30 +1,32 @@
 import React, { useState, useCallback, useEffect } from "react";
-import { Plus, Trash2, Check, Loader2 } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import getAllDivers from "../../services/getAllDivers";
 import type { DiveEntry, DiveData, DiverFromAPI } from "../../types/index";
+import CompetitionTable from "./CompetitionTable";
+import CSVTable from "./CSVTable";
 
 interface ManualEntryModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: DiveData) => void;
+  mode?: "training" | "competition";
 }
 
-const drillTypeMap: Record<string, string> = {
-  A: "Approach",
-  TO: "Takeoff",
-  CON: "Connection",
-  S: "Shape",
-  CO: "Comeout",
-  ADJ: "Adjustment",
-  RIP: "Entry",
-  UW: "Underwater",
-};
+// Removed local drillTypeMap in favor of shared table components used in edit UI
 
 const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
   isOpen,
   onClose,
   onSave,
+  mode = "training",
 }) => {
+  const getLocalYMD = () => {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  };
   const [divers, setDivers] = useState<DiverFromAPI[]>([]);
   const [loadingDivers, setLoadingDivers] = useState(false);
   const [diversError, setDiversError] = useState<string | null>(null);
@@ -34,16 +36,17 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
     Dives: [
       {
         DiveCode: "",
-        DrillType: "A", // Default to Approach
+        DrillType: mode === "competition" ? "" : "A", // no default for competition
         Board: "",
+        DegreeOfDifficulty: "",
         Reps: [], // Will be empty for manual entries
-        Success: "0/0",
+        Success: "",
       },
     ],
     comment: "",
-    rating: undefined,
-    balks: 0,
-    session_date: new Date().toLocaleDateString("en-CA"), // YYYY-MM-DD format in local timezone
+    rating: mode === "training" ? undefined : undefined,
+    balks: mode === "training" ? 0 : undefined,
+    session_date: getLocalYMD(),
   });
 
   const [errors, setErrors] = useState<{
@@ -54,6 +57,7 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
         diveCode?: string;
         board?: string;
         drillType?: string;
+        degreeOfDifficulty?: string;
         success?: string;
       };
     };
@@ -146,6 +150,46 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
               }
             }
           }
+        } else if (field === "degreeOfDifficulty" && diveIndex !== undefined) {
+          if (!String(value).trim()) {
+            if (!newErrors.diveFields) newErrors.diveFields = {};
+            if (!newErrors.diveFields[diveIndex])
+              newErrors.diveFields[diveIndex] = {};
+            newErrors.diveFields[diveIndex].degreeOfDifficulty =
+              "Degree of difficulty is required";
+          } else {
+            if (newErrors.diveFields?.[diveIndex]?.degreeOfDifficulty) {
+              delete newErrors.diveFields[diveIndex].degreeOfDifficulty;
+              if (Object.keys(newErrors.diveFields[diveIndex]).length === 0) {
+                delete newErrors.diveFields[diveIndex];
+              }
+              if (Object.keys(newErrors.diveFields || {}).length === 0) {
+                delete newErrors.diveFields;
+              }
+            }
+          }
+        } else if (field === "success" && diveIndex !== undefined) {
+          const hasScore = String(value)
+            .split(",")
+            .map((s: string) => s.trim())
+            .some((s: string) => s.length > 0);
+          if (!hasScore) {
+            if (!newErrors.diveFields) newErrors.diveFields = {};
+            if (!newErrors.diveFields[diveIndex])
+              newErrors.diveFields[diveIndex] = {};
+            newErrors.diveFields[diveIndex].success =
+              "At least one score is required";
+          } else {
+            if (newErrors.diveFields?.[diveIndex]?.success) {
+              delete newErrors.diveFields[diveIndex].success;
+              if (Object.keys(newErrors.diveFields[diveIndex]).length === 0) {
+                delete newErrors.diveFields[diveIndex];
+              }
+              if (Object.keys(newErrors.diveFields || {}).length === 0) {
+                delete newErrors.diveFields;
+              }
+            }
+          }
         }
 
         return newErrors;
@@ -162,20 +206,21 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
         Dives: [
           {
             DiveCode: "",
-            DrillType: "A", // Default to Approach
+            DrillType: mode === "competition" ? "" : "A",
             Board: "",
+            DegreeOfDifficulty: "",
             Reps: [], // Will be empty for manual entries
-            Success: "0/0",
+            Success: "",
           },
         ],
         comment: "",
-        rating: undefined,
-        balks: 0,
-        session_date: new Date().toLocaleDateString("en-CA"), // YYYY-MM-DD format in local timezone
+        rating: mode === "training" ? undefined : undefined,
+        balks: mode === "training" ? 0 : undefined,
+        session_date: getLocalYMD(),
       });
       setErrors({});
     }
-  }, [isOpen]);
+  }, [isOpen, mode]);
 
   // Trigger validation when form data changes
   React.useEffect(() => {
@@ -216,11 +261,16 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
         validateField("board", value, index);
       } else if (field === "DrillType") {
         validateField("drillType", value, index);
+      } else if (field === "DegreeOfDifficulty") {
+        validateField("degreeOfDifficulty", value, index);
+      } else if (field === "Success") {
+        validateField("success", value, index);
       }
     },
     [validateField]
   );
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const addDive = useCallback(() => {
     setFormData((prev) => ({
       ...prev,
@@ -228,10 +278,11 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
         ...prev.Dives,
         {
           DiveCode: "",
-          DrillType: "A", // Default to Approach
+          DrillType: mode === "competition" ? "" : "A",
           Board: "",
+          DegreeOfDifficulty: "",
           Reps: [], // Will be empty for manual entries
-          Success: "0/0",
+          Success: "",
         },
       ],
     }));
@@ -243,47 +294,64 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
       }
       return newErrors;
     });
-  }, []);
+  }, [mode]);
 
-  const removeDive = useCallback((index: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      Dives: prev.Dives.filter((_, i) => i !== index),
-    }));
-    // Clear errors for the removed dive and reindex remaining errors
-    setErrors((prev) => {
-      const newErrors = { ...prev };
-      if (newErrors.diveFields) {
-        delete newErrors.diveFields[index];
-        // Reindex the remaining errors
-        const reindexedErrors: { [key: number]: any } = {};
-        Object.keys(newErrors.diveFields).forEach((key) => {
-          const oldIndex = parseInt(key);
-          if (oldIndex > index) {
-            reindexedErrors[oldIndex - 1] = newErrors.diveFields![oldIndex];
-          } else if (oldIndex < index) {
-            reindexedErrors[oldIndex] = newErrors.diveFields![oldIndex];
-          }
-        });
-        newErrors.diveFields = reindexedErrors;
-        if (Object.keys(newErrors.diveFields).length === 0) {
-          delete newErrors.diveFields;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const removeDive = useCallback(
+    (index: number) => {
+      setFormData((prev) => {
+        const updated = prev.Dives.filter((_, i) => i !== index);
+        return {
+          ...prev,
+          Dives:
+            updated.length === 0
+              ? [
+                  {
+                    DiveCode: "",
+                    DrillType: mode === "competition" ? "" : "A",
+                    Board: "",
+                    DegreeOfDifficulty: "",
+                    Reps: [],
+                    Success: "",
+                  },
+                ]
+              : updated,
+        };
+      });
+      // Clear errors for the removed dive and reindex remaining errors
+      setErrors((prev) => {
+        const newErrors = { ...prev } as any;
+        if (newErrors.diveFields) {
+          delete newErrors.diveFields[index];
+          const reindexedErrors: { [key: number]: any } = {};
+          Object.keys(newErrors.diveFields).forEach((key) => {
+            const oldIndex = parseInt(key);
+            if (oldIndex > index)
+              reindexedErrors[oldIndex - 1] = newErrors.diveFields[oldIndex];
+            else if (oldIndex < index)
+              reindexedErrors[oldIndex] = newErrors.diveFields[oldIndex];
+          });
+          newErrors.diveFields = reindexedErrors;
+          if (Object.keys(newErrors.diveFields).length === 0)
+            delete newErrors.diveFields;
         }
-      }
-      return newErrors;
-    });
-  }, []);
+        return newErrors;
+      });
+    },
+    [mode]
+  );
 
   const validateForm = (): boolean => {
-    // Check all required fields
-    const hasNameError =
-      !formData.Name.trim() || !divers.some((d) => d.name === formData.Name);
-    const hasDiveErrors = formData.Dives.some(
-      (dive) =>
-        !dive.DiveCode.trim() || !dive.Board.trim() || !dive.DrillType.trim()
-    );
-
-    return !hasNameError && !hasDiveErrors && formData.Dives.length > 0;
+    const nameOk =
+      !!formData.Name?.trim() && divers.some((d) => d.name === formData.Name);
+    const dives = Array.isArray(formData.Dives) ? formData.Dives : [];
+    const hasDiveErrors = dives.some((dive) => {
+      const code = (dive?.DiveCode ?? "").trim();
+      const board = (dive?.Board ?? "").trim();
+      const type = (dive?.DrillType ?? "").trim();
+      return !code || !board || !type;
+    });
+    return nameOk && !hasDiveErrors && dives.length > 0;
   };
 
   const handleSave = () => {
@@ -299,34 +367,47 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
   const isFormValid = validateForm();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
-      <div className="bg-white rounded-lg shadow-2xl max-w-5xl w-full mx-4 p-8 relative overflow-y-auto max-h-[95vh]">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl font-bold focus:outline-none"
-          aria-label="Close"
-        >
-          &times;
-        </button>
-
-        <div className="space-y-6">
-          {/* Header */}
-          <div className="flex flex-col md:flex-row items-center md:justify-between">
-            <h3 className="text-xl font-semibold md:mb-0 mb-3 text-gray-900">
-              Add Manual Training Log
-            </h3>
-            <div className="flex gap-2">
-              <button
-                onClick={handleSave}
-                className="flex items-center gap-2 bg-green-600  text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
-                disabled={!isFormValid}
-              >
-                <Check className="h-4 w-4" />
-                Add Training Log
-              </button>
-            </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full mx-4 overflow-hidden max-h-[94vh]">
+        {/* Sticky Header */}
+        <div className="flex items-center justify-between px-6 py-4 md:border-b bg-white/90 backdrop-blur">
+          <div className="flex items-center gap-3">
+            <span
+              className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                mode === "competition"
+                  ? "bg-blue-100 text-blue-700"
+                  : "bg-blue-100 text-blue-700"
+              }`}
+            >
+              {mode === "competition" ? "Competition" : "Training"}
+            </span>
+            <span className="text-sm font-semibold text-gray-700">
+              {mode === "competition"
+                ? "Add Manual Competition Log"
+                : "Add Manual Training Log"}
+            </span>
           </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSave}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-600 text-white shadow hover:bg-green-700 text-sm font-medium"
+              disabled={!isFormValid}
+            >
+              <Check className="h-4 w-4" />
+              {mode === "competition" ? "Add Log" : "Add Log"}
+            </button>
+            <button
+              aria-label="Close"
+              onClick={onClose}
+              className="inline-flex items-center justify-center h-9 w-9 rounded-lg border border-gray-300 bg-white shadow-sm hover:bg-gray-50 text-gray-600"
+            >
+              <span className="sr-only">Close</span>×
+            </button>
+          </div>
+        </div>
 
+        {/* Scrollable content below sticky header */}
+        <div className="p-6 space-y-6 overflow-y-auto max-h-[calc(94vh-64px)] pb-24 md:pb-6">
           {/* Form Content */}
           <div className="space-y-6">
             {/* Diver Name */}
@@ -342,7 +423,7 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
                     validateField("name", e.target.value);
                   }}
                   disabled={loadingDivers}
-                  className={`w-full px-3 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  className={`w-full appearance-none px-3 pr-9 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                     errors.name ? "border-red-500" : ""
                   } ${loadingDivers ? "bg-gray-100 cursor-not-allowed" : ""}`}
                   required
@@ -356,8 +437,20 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
                     </option>
                   ))}
                 </select>
+                <svg
+                  className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z"
+                    clipRule="evenodd"
+                  />
+                </svg>
                 {loadingDivers && (
-                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <div className="absolute right-9 top-1/2 transform -translate-y-1/2">
                     <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
                   </div>
                 )}
@@ -385,71 +478,72 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
               </label>
               <input
                 type="date"
-                value={
-                  formData.session_date ||
-                  new Date().toLocaleDateString("en-CA")
-                }
+                value={formData.session_date || getLocalYMD()}
                 onChange={(e) =>
                   setFormData((prev) => ({
                     ...prev,
                     session_date: e.target.value,
                   }))
                 }
-                className="w-full px-3 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
-            {/* Log Rating */}
-            <div className="space-y-2">
-              <label className="block font-medium text-gray-700">
-                Log Rating
-              </label>
-              <div className="flex gap-3">
-                {["green", "yellow", "red"].map((color) => (
-                  <button
-                    key={color}
-                    type="button"
-                    onClick={() =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        rating: color as "green" | "yellow" | "red",
-                      }))
-                    }
-                    className={`px-4 py-2 rounded font-semibold border-2 focus:outline-none transition-colors
-                                            ${
-                                              formData.rating === color
-                                                ? color === "green"
-                                                  ? "bg-green-500 text-white border-green-600"
-                                                  : color === "yellow"
-                                                  ? "bg-yellow-400 text-white border-yellow-500"
-                                                  : "bg-red-500 text-white border-red-600"
-                                                : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
-                                            }
-                                        `}
-                  >
-                    {color.charAt(0).toUpperCase() + color.slice(1)}
-                  </button>
-                ))}
+            {/* Log Rating (training only) */}
+            {mode === "training" && (
+              <div className="space-y-2">
+                <label className="block font-medium text-gray-700">
+                  Log Rating
+                </label>
+                <div className="flex gap-3">
+                  {["green", "yellow", "red"].map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          rating: color as "green" | "yellow" | "red",
+                        }))
+                      }
+                      className={`px-3 py-1.5 rounded-lg font-semibold border focus:outline-none transition-colors ${
+                        formData.rating === color
+                          ? color === "green"
+                            ? "bg-green-600 text-white border-green-700"
+                            : color === "yellow"
+                            ? "bg-yellow-500 text-white border-yellow-600"
+                            : "bg-red-600 text-white border-red-700"
+                          : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                      }`}
+                    >
+                      {color.charAt(0).toUpperCase() + color.slice(1)}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Balks */}
-            <div className="space-y-2">
-              <label className="block font-medium text-gray-700">Balks</label>
-              <input
-                type="number"
-                min="0"
-                value={formData.balks === 0 ? "" : formData.balks || ""}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    balks: parseInt(e.target.value) || 0,
-                  }))
-                }
-                className="w-24 px-3 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="0"
-              />
-            </div>
+            {/* Balks (training only) */}
+            {mode === "training" && (
+              <div className="space-y-2">
+                <label className="block font-medium text-gray-700">Balks</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={
+                    formData.balks === 0 ? "" : (formData.balks as number) || ""
+                  }
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      balks: parseInt(e.target.value) || 0,
+                    }))
+                  }
+                  className="w-24 px-3 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="0"
+                />
+              </div>
+            )}
           </div>
 
           <hr className="my-4 border-gray-200" />
@@ -460,13 +554,6 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
               <h4 className="font-semibold text-gray-900">
                 Dives ({formData.Dives.length})
               </h4>
-              <button
-                onClick={addDive}
-                className="flex items-center gap-2 bg-blue-100 text-blue-700 px-3 py-1 rounded text-sm hover:bg-blue-200 transition-colors"
-              >
-                <Plus className="h-4 w-4" />
-                Add New Dive
-              </button>
             </div>
             {errors.dives && (
               <div className="text-red-500 text-sm bg-red-50 p-2 rounded border border-red-200">
@@ -474,168 +561,46 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
               </div>
             )}
 
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse border border-gray-300">
-                <thead>
-                  <tr className="bg-gray-100">
-                    <th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium text-gray-700">
-                      Dive Code
-                    </th>
-                    <th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium text-gray-700">
-                      Board
-                    </th>
-                    <th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium text-gray-700">
-                      Drill Type
-                    </th>
-                    <th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium text-gray-700">
-                      Success Rate
-                    </th>
-                    <th className="border border-gray-300 px-2 py-2 text-sm w-12">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {formData.Dives.map((dive, diveIndex) => (
-                    <tr key={diveIndex} className="hover:bg-gray-50 relative">
-                      <td className="border border-gray-300 px-3 py-2 text-sm">
-                        <input
-                          value={dive.DiveCode}
-                          onChange={(e) =>
-                            updateDive(diveIndex, "DiveCode", e.target.value)
-                          }
-                          placeholder="e.g., 100B"
-                          className={`w-full px-2 py-1 border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${
-                            errors.diveFields?.[diveIndex]?.diveCode
-                              ? "border-red-500"
-                              : ""
-                          }`}
-                        />
-                        {errors.diveFields?.[diveIndex]?.diveCode && (
-                          <div className="text-red-500 text-xs mt-1">
-                            {errors.diveFields[diveIndex].diveCode}
-                          </div>
-                        )}
-                      </td>
-                      <td className="border border-gray-300 px-3 py-2 text-sm">
-                        <input
-                          value={dive.Board}
-                          onChange={(e) =>
-                            updateDive(diveIndex, "Board", e.target.value)
-                          }
-                          placeholder="e.g., 5m"
-                          className={`w-full px-2 py-1 border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${
-                            errors.diveFields?.[diveIndex]?.board
-                              ? "border-red-500"
-                              : ""
-                          }`}
-                        />
-                        {errors.diveFields?.[diveIndex]?.board && (
-                          <div className="text-red-500 text-xs mt-1">
-                            {errors.diveFields[diveIndex].board}
-                          </div>
-                        )}
-                      </td>
-                      <td className="border border-gray-300 px-3 py-2 text-sm">
-                        <select
-                          value={dive.DrillType}
-                          onChange={(e) =>
-                            updateDive(diveIndex, "DrillType", e.target.value)
-                          }
-                          className={`w-full px-2 py-1 border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${
-                            errors.diveFields?.[diveIndex]?.drillType
-                              ? "border-red-500"
-                              : ""
-                          }`}
-                        >
-                          {Object.keys(drillTypeMap).map((key) => (
-                            <option key={key} value={key}>
-                              {key} - {drillTypeMap[key]}
-                            </option>
-                          ))}
-                        </select>
-                        {errors.diveFields?.[diveIndex]?.drillType && (
-                          <div className="text-red-500 text-xs mt-1">
-                            {errors.diveFields[diveIndex].drillType}
-                          </div>
-                        )}
-                      </td>
-                      <td className="border border-gray-300 px-3 py-2 text-sm">
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="number"
-                            min="0"
-                            value={
-                              dive.Success.split("/")[0] === "0"
-                                ? ""
-                                : dive.Success.split("/")[0] || ""
-                            }
-                            onChange={(e) => {
-                              const successful = e.target.value || "0";
-                              const total = dive.Success.split("/")[1] || "0";
-                              updateDive(
-                                diveIndex,
-                                "Success",
-                                `${successful}/${total}`
-                              );
-                            }}
-                            className="w-12 px-1 py-1 border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 text-center"
-                            placeholder="0"
-                          />
-                          <span className="text-gray-500">/</span>
-                          <input
-                            type="number"
-                            min="0"
-                            value={
-                              dive.Success.split("/")[1] === "0"
-                                ? ""
-                                : dive.Success.split("/")[1] || ""
-                            }
-                            onChange={(e) => {
-                              const successful =
-                                dive.Success.split("/")[0] || "0";
-                              const total = e.target.value || "0";
-                              updateDive(
-                                diveIndex,
-                                "Success",
-                                `${successful}/${total}`
-                              );
-                            }}
-                            className="w-12 px-1 py-1 border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 text-center"
-                            placeholder="0"
-                          />
-                        </div>
-                      </td>
-                      <td className="border border-gray-300 px-2 py-2 text-sm w-12">
-                        {formData.Dives.length > 1 && (
-                          <button
-                            onClick={() => removeDive(diveIndex)}
-                            className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50 transition-colors"
-                            title="Remove dive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="overflow-x-auto md:max-h-96 overflow-y-auto">
+              {mode === "competition" ? (
+                <CompetitionTable
+                  data={formData.Dives}
+                  isEditing={true}
+                  onDataEdit={(field, value, diveIndex) => {
+                    if (typeof diveIndex === "number") {
+                      updateDive(diveIndex, field as keyof DiveEntry, value);
+                    }
+                  }}
+                  onDataChange={(newData) =>
+                    setFormData((prev) => ({ ...prev, Dives: newData }))
+                  }
+                />
+              ) : (
+                <CSVTable
+                  data={formData.Dives}
+                  isEditing={true}
+                  onDataChange={(newData) =>
+                    setFormData((prev) => ({ ...prev, Dives: newData }))
+                  }
+                />
+              )}
             </div>
           </div>
 
-          {/* Comment Box */}
-          <div className="space-y-2">
-            <label className="block font-medium text-gray-700">Comment</label>
-            <textarea
-              value={formData.comment || ""}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, comment: e.target.value }))
-              }
-              className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[60px]"
-              placeholder="Add a comment about this training log..."
-            />
-          </div>
+          {/* Comment Box (training only) */}
+          {mode === "training" && (
+            <div className="space-y-2">
+              <label className="block font-medium text-gray-700">Comment</label>
+              <textarea
+                value={formData.comment || ""}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, comment: e.target.value }))
+                }
+                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[60px]"
+                placeholder="Add a comment about this training log..."
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>
