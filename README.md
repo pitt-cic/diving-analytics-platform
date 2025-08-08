@@ -61,7 +61,7 @@ optimized querying patterns for diving analytics use cases.
 
 ## Architecture Diagram
 
-![Diving Analytics Platform Architecture](images/architecture.jpeg)
+![Diving Analytics Platform Architecture](media/architecture.jpeg)
 
 ## Functionality
 
@@ -105,6 +105,10 @@ The Diving Analytics Platform provides the following core capabilities:
 - [Jest](https://jestjs.io/) - Testing Framework
 
 # How to Use
+
+## Site Demo
+
+https://github.com/pitt-cic/diving-analytics-platform/raw/refs/heads/develop/media/demo.mp4
 
 ## 1. Access the Application
 
