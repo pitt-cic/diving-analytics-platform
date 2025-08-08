@@ -54,82 +54,6 @@ const Divers: React.FC = () => {
     divers.find((d) => d.name.toLowerCase().replace(/\s+/g, "-") === diverId) ||
     divers[0];
 
-  // --- MOCK TRAINING DATA GENERATOR ---
-  const generateMockTrainingData = () => {
-    const diveCodes = [
-      "10B",
-      "100B",
-      "200B",
-      "300B",
-      "400B",
-      "500B",
-      "600",
-      "300S",
-    ];
-    const drillTypes = ["A", "TO", "CON", "S", "CO", "ADJ", "RIP", "UW"];
-    const generateReps = (count: number) =>
-      Array.from({ length: count }, () => (Math.random() > 0.4 ? "O" : "X"));
-    const sessions = Array.from({ length: 15 }, (_, sessionIndex) => {
-      const date = new Date();
-      date.setDate(date.getDate() - sessionIndex * 2);
-      const dives = Array.from(
-        { length: Math.floor(Math.random() * 4) + 3 },
-        () => {
-          const repCount = Math.floor(Math.random() * 12) + 3;
-          const reps = generateReps(repCount);
-          const successCount = reps.filter((rep) => rep === "O").length;
-          return {
-            code: diveCodes[Math.floor(Math.random() * diveCodes.length)],
-            drillType:
-              drillTypes[Math.floor(Math.random() * drillTypes.length)],
-            reps,
-            success: successCount,
-            confidence: Math.random() * 0.7 + 0.3,
-          };
-        }
-      );
-      return {
-        date: date.toISOString().split("T")[0],
-        dives,
-        balks: Math.floor(Math.random() * 3),
-      };
-    });
-    const diveCodeStats = sessions.reduce((stats, session) => {
-      session.dives.forEach((dive) => {
-        if (!stats[dive.code]) {
-          stats[dive.code] = { totalReps: 0, successfulReps: 0, sessions: 0 };
-        }
-        stats[dive.code].totalReps += dive.reps.length;
-        stats[dive.code].successfulReps += dive.success;
-        stats[dive.code].sessions += 1;
-      });
-      return stats;
-    }, {} as Record<string, { totalReps: number; successfulReps: number; sessions: number }>);
-    const totalDives = sessions.reduce(
-      (sum, session) => sum + session.dives.length,
-      0
-    );
-    const totalSuccess = sessions.reduce(
-      (sum, session) =>
-        sum +
-        session.dives.reduce((diveSum, dive) => diveSum + dive.success, 0),
-      0
-    );
-    const totalReps = sessions.reduce(
-      (sum, session) =>
-        sum +
-        session.dives.reduce((diveSum, dive) => diveSum + dive.reps.length, 0),
-      0
-    );
-    return {
-      sessions,
-      totalDives,
-      successRate: Math.round((totalSuccess / totalReps) * 100),
-      diveCodeStats,
-    };
-  };
-  // --- END MOCK TRAINING DATA GENERATOR ---
-
   // Fetch diver profile when diverId or selectedDiver changes
   useEffect(() => {
     if (!selectedDiver) return;
@@ -147,10 +71,6 @@ const Divers: React.FC = () => {
         );
         if (!res.ok) throw new Error("Failed to fetch diver profile");
         const data = await res.json();
-        // Add mock training data if missing
-        if (!data.training) {
-          data.training = generateMockTrainingData();
-        }
         setSelectedDiverProfile(data);
         setProfileLoading(false);
       } catch (err) {
