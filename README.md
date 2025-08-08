@@ -1,11 +1,11 @@
 # Diving Analytics Platform
 
 | Index                                             | Description                                                             |
-|:--------------------------------------------------|:------------------------------------------------------------------------|
-| [Overview](#overview)                             | See the motivation behind this project                                  | 
-| [Description](#description)                       | Learn more about the problem, implemented solution and challenges faced | 
-| [Deployment Guide](#deployment)                   | How to install and deploy __Diving Analytics Platform__                 |
-| [How to Use](#how-to-use)                         | Instructions to use __Diving Analytics Platform__                       |
+| :------------------------------------------------ | :---------------------------------------------------------------------- |
+| [Overview](#overview)                             | See the motivation behind this project                                  |
+| [Description](#description)                       | Learn more about the problem, implemented solution and challenges faced |
+| [Deployment Guide](#deployment)                   | How to install and deploy **Diving Analytics Platform**                 |
+| [How to Use](#how-to-use)                         | Instructions to use **Diving Analytics Platform**                       |
 | [Technical Architecture](#technical-architecture) | Detailed technical implementation and architecture                      |
 | [Lessons Learned](#lessons-learned)               | Limitations, lessons learned and next steps which can be taken          |
 | [Bill Of Materials](#bill-of-materials)           | Cost of deployment                                                      |
@@ -94,7 +94,7 @@ The Diving Analytics Platform provides the following core capabilities:
 - [React](https://reactjs.org/) - User Interface Framework
 - [TypeScript](https://www.typescriptlang.org/) - Type-safe JavaScript
 - [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS Framework
-- [Chart.js](https://www.chartjs.org/) - Data Visualization
+- [Recharts](https://recharts.org/) - Data Visualization
 - [React Query](https://tanstack.com/query) - Data Fetching & State Management
 - [React Router](https://reactrouter.com/) - Client-side Routing
 
@@ -150,9 +150,9 @@ The main dashboard provides:
 1. Navigate to "Divers" section
 2. Select a diver from the list
 3. View comprehensive profile including:
-    - Personal information
-    - Competition performance history, which can be filtered by dive code and boards
-    - Competition results
+   - Personal information
+   - Competition performance history, which can be filtered by dive code and boards
+   - Competition results
 
 ### View Diver Training Analysis
 
@@ -160,9 +160,9 @@ The main dashboard provides:
 2. Select a diver from the list
 3. Click on training tab
 4. View training data including:
-    - Number of training sessions
-    - Total Dives
-    - Average success rate
+   - Number of training sessions
+   - Total Dives
+   - Average success rate
 
 ## 6. Training Logs
 
@@ -193,9 +193,11 @@ Before deploying the Diving Analytics Platform, ensure you have the following in
 ## AWS Account Setup
 
 1. **Configure AWS CLI**:
+
    ```bash
    aws configure
    ```
+
    Enter your AWS Access Key ID, Secret Access Key, default region, and output format.
 
 2. **Bootstrap CDK** (first-time only):
@@ -206,18 +208,21 @@ Before deploying the Diving Analytics Platform, ensure you have the following in
 ## Backend Deployment
 
 1. **Clone the repository**:
+
    ```bash
    git clone https://github.com/pitt-cic/diving-analytics-platform.git
    cd diving-analytics-platform
    ```
 
 2. **Install backend dependencies**:
+
    ```bash
    cd backend
    npm install
    ```
 
 3. **Build the project**:
+
    ```bash
    npm run build
    ```
@@ -225,18 +230,22 @@ Before deploying the Diving Analytics Platform, ensure you have the following in
 4. **Deploy the backend infrastructure**:
 
    **Interactive Deployment Script (Recommended)**
+
    ```bash
    # Run the interactive deployment script
    ./deploy-backend.sh
    ```
+
    This script will:
-    - Check all prerequisites and detect the correct directory
-    - Prompt you for the team number with validation
-    - Show deployment confirmation with AWS account details
-    - Install dependencies and build automatically
-    - Deploy all stacks and provide detailed status updates
+
+   - Check all prerequisites and detect the correct directory
+   - Prompt you for the team number with validation
+   - Show deployment confirmation with AWS account details
+   - Install dependencies and build automatically
+   - Deploy all stacks and provide detailed status updates
 
    **Manual CDK Commands**
+
    ```bash
    # Deploy with a specific team number (required)
    npx cdk deploy --all --context teamNumber=<your_team_number_here>
@@ -329,16 +338,14 @@ Starting diving data extraction for team number: <your_team_number>
 
 1. **Frontend Environment Variables**:
    Create a `.env` file in the frontend directory:
+
    ```env
    REACT_APP_API_ENDPOINT=<API_GATEWAY_URL>
    REACT_APP_AWS_REGION=<YOUR_AWS_REGION>
    REACT_APP_USER_POOL_ID=<COGNITO_USER_POOL_ID>
    REACT_APP_USER_POOL_CLIENT_ID=<COGNITO_CLIENT_ID>
    REACT_APP_IDENTITY_POOL_ID=<COGNITO_IDENTITY_POOL_ID>
-   REACT_APP_MEDIA_BUCKET=<YOUR_INPUT_BUCKET_NAME>
-   REACT_APP_FEATURE_DIVEMEETS_INTEGRATION=false
-   REACT_APP_FEATURE_ANALYTICS_EXPORT=false
-   REACT_APP_USE_MOCK_DATA=false
+   REACT_APP_INPUT_BUCKET_NAME=<YOUR_INPUT_BUCKET_NAME>
    ```
 
 2. **Backend Environment Variables**:
@@ -384,9 +391,9 @@ Starting diving data extraction for team number: <your_team_number>
 **Problem**: Script fails with "command not found" errors
 
 - **Solution**: Ensure prerequisites are installed:
-    - Node.js: `node --version`
-    - AWS CLI: `aws --version`
-    - CDK: `cdk --version`
+  - Node.js: `node --version`
+  - AWS CLI: `aws --version`
+  - CDK: `cdk --version`
 
 **Problem**: Script fails with AWS credential errors
 
@@ -413,7 +420,7 @@ The backend is built using AWS CDK with TypeScript, providing:
 
 ### API Architecture
 
-RESTful API design with the following endpoints:
+RESTful API design with secure, Cognito-authorized endpoints (examples):
 
 - `GET /divers` - List all divers
 - `GET /divers/{id}` - Get diver profile
@@ -428,18 +435,15 @@ RESTful API design with the following endpoints:
 
 ```
 src/
-├── components/          # Reusable UI components
-│   ├── layout/         # Layout components
-│   ├── charts/         # Data visualization components
-│   └── forms/          # Form components
-├── pages/              # Page components
-│   ├── Dashboard/      # Main dashboard
-│   ├── Divers/         # Diver management
-│   ├── DiveLog/        # Training logs
-│   └── Auth/           # Authentication
-├── services/           # API service layer
-├── types/              # TypeScript type definitions
-└── constants/          # Application constants
+├── components/
+│   ├── layout/           # Layout (Header, Sidebar, AppLayout)
+│   ├── divers/           # Diver views (SideNav, DiverProfile, etc.)
+│   └── divelog/          # Dive log UI (modals, sections)
+├── pages/                # Pages (Dashboard, Divers, DiveLog, Auth)
+├── services/             # API and storage helpers
+├── hooks/                # React Query/data hooks
+├── types/                # TypeScript type definitions
+└── config.ts, aws-config.ts
 ```
 
 ### State Management
@@ -538,4 +542,4 @@ SOFTWARE.
 ---
 
 For questions, issues, or contributions, please visit
-our [GitHub repository](https://github.com/your-org/diving-analytics-platform) or contact the development team.
+our [GitHub repository](https://github.com/pitt-cic/diving-analytics-platform/) or contact the development team.

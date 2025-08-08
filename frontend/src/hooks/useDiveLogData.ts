@@ -11,7 +11,6 @@ import {
   mapApiToConfirmedLog,
   mapConfirmedLogsWithData,
   batchMapApiToImageData,
-  generateMockData,
 } from "../services/dataFormatters";
 import type { DiveData, DiverFromAPI } from "../types/index";
 
@@ -219,16 +218,20 @@ export function useDiveLogData(
   const uploadFiles = useCallback(
     async (files: File[]) => {
       setIsUploading(true);
-      const newImages: ImageData[] = await Promise.all(
-        files.map(async (file, index) => ({
-          id: `${Date.now()}-${index}`,
-          file,
-          url: URL.createObjectURL(file),
-          extractedData: await generateMockData(),
-          isEditing: false,
-          uploadStatus: "pending" as const,
-        }))
-      );
+      const newImages: ImageData[] = files.map((file, index) => ({
+        id: `${Date.now()}-${index}`,
+        file,
+        url: URL.createObjectURL(file),
+        extractedData: {
+          Name: "",
+          Dives: [],
+          comment: "",
+          rating: undefined,
+          balks: 0,
+        },
+        isEditing: false,
+        uploadStatus: "pending" as const,
+      }));
 
       // Add to pending immediately for optimistic UI
       setPendingImages((prev) => [...prev, ...newImages]);

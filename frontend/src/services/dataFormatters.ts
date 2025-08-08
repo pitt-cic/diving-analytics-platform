@@ -1,5 +1,4 @@
 import getPresignedUrl from "./getPresignedUrl";
-import getAllDivers from "./getAllDivers";
 import type { DiveData } from "../types/index";
 
 export interface ImageData {
@@ -50,63 +49,6 @@ export function extractS3KeyFromUrl(s3Url: string): string | null {
     return null;
   }
 }
-
-/**
- * Mock data generator with improved randomization
- */
-export const generateMockData = async (): Promise<DiveData> => {
-  let divers;
-  try {
-    divers = await getAllDivers();
-  } catch (error) {
-    console.error("Error fetching divers for mock data:", error);
-    // Fallback to a default diver if API fails
-    divers = [{ id: "1", name: "Test Diver" }];
-  }
-
-  const randomDiver = divers[Math.floor(Math.random() * divers.length)];
-  const diveCodes = [
-    "10B",
-    "100B",
-    "200B",
-    "300B",
-    "400B",
-    "500B",
-    "600",
-    "300S",
-  ];
-  const drillTypes = ["A", "TO", "CON", "S", "CO", "ADJ", "RIP", "UW"];
-  const boards = ["1M", "3M", "5M", "7.5M", "10M"];
-
-  const generateReps = (count: number): string[] => {
-    return Array.from({ length: count }, () =>
-      Math.random() > 0.4 ? "O" : "X"
-    );
-  };
-
-  const diveCount = Math.floor(Math.random() * 4) + 3;
-  const dives = Array.from({ length: diveCount }, () => {
-    const repCount = Math.floor(Math.random() * 12) + 3;
-    const reps = generateReps(repCount);
-    const successCount = reps.filter((rep) => rep === "O").length;
-
-    return {
-      DiveCode: diveCodes[Math.floor(Math.random() * diveCodes.length)],
-      DrillType: drillTypes[Math.floor(Math.random() * drillTypes.length)],
-      Board: boards[Math.floor(Math.random() * boards.length)],
-      Reps: reps,
-      Success: `${successCount}/${repCount}`,
-    };
-  });
-
-  return {
-    Name: randomDiver.name,
-    Dives: dives,
-    comment: "",
-    rating: undefined,
-    balks: 0,
-  };
-};
 
 /**
  * Parse JSON output with better error handling

@@ -27,20 +27,6 @@ export const configureAmplify = () => {
           },
         },
       ],
-      graphql_headers: async () => {
-        try {
-          const session = await Amplify.Auth.currentSession();
-          return {
-            Authorization: session.getIdToken().getJwtToken(),
-          };
-        } catch (e) {
-          // If not authenticated, use API key for public access
-          return {
-            "x-api-key": config.aws.graphqlApiKey,
-          };
-        }
-      },
-      graphql_endpoint: config.aws.graphqlApiUrl,
     },
     Storage: {
       AWSS3: {
@@ -63,9 +49,4 @@ export const configureAmplify = () => {
   Amplify.configure(amplifyConfig);
 
   console.log("Amplify configured with region:", config.aws.region);
-
-  // If using mock data, log a notice
-  if (config.features.useMockData) {
-    console.log("Using mock data - no actual AWS calls will be made");
-  }
 };
