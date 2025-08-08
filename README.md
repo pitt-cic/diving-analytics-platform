@@ -27,6 +27,11 @@ services with modern AI capabilities.
 The result is a powerful platform that delivers deep insights into diving performance trends, and training
 progress, empowering coaches and athletes to focus more on performance improvement and less on data entry.
 
+# Demo
+
+https://github.com/user-attachments/assets/4592d143-4b36-495c-99c6-f14bc29946cf
+
+
 # Description
 
 ## Problem
@@ -105,10 +110,6 @@ The Diving Analytics Platform provides the following core capabilities:
 - [Jest](https://jestjs.io/) - Testing Framework
 
 # How to Use
-
-## Site Demo
-
-https://github.com/pitt-cic/diving-analytics-platform/raw/refs/heads/develop/media/demo.mp4
 
 ## 1. Access the Application
 
