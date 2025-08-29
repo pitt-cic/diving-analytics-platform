@@ -23,7 +23,6 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
     public readonly getAllDiversFunction: lambda.Function;
     public readonly getDiverProfileFunction: lambda.Function;
     public readonly getDiverTrainingFunction: lambda.Function;
-    public readonly getTrainingPhotoFunction: lambda.Function;
     public readonly importCompetitionDataFunction: lambda.Function;
     public readonly getTrainingDataByStatusFunction: lambda.Function;
     public readonly updateTrainingDataFunction: lambda.Function;
@@ -159,8 +158,8 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
         });
 
         // Table 5: LLM Results - Store LLM JSON responses
-        const trainingDataTable = new dynamodb.Table(this, 'trainingDataTable', {
-            tableName: 'trainingData',
+        const trainingDataTable = new dynamodb.Table(this, 'TrainingDataTable', {
+            tableName: 'TrainingData',
             partitionKey: {name: 'id', type: dynamodb.AttributeType.STRING},
             billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
             removalPolicy: cdk.RemovalPolicy.RETAIN,
@@ -300,23 +299,6 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
             }
         });
 
-        this.getTrainingPhotoFunction = new lambda.Function(this, 'GetTrainingPhotoFunction', {
-            runtime: lambda.Runtime.PYTHON_3_12,
-            handler: 'get_training_photo.handler',
-            code: lambda.Code.fromAsset('lambda', {
-                bundling: {
-                    image: lambda.Runtime.PYTHON_3_12.bundlingImage,
-                    command: [
-                        'bash', '-c',
-                        'pip install -r requirements.txt -t /asset-output && cp -au . /asset-output'
-                    ]
-                }
-            }),
-            timeout: cdk.Duration.seconds(30),
-            environment: {
-                OUTPUT_BUCKET_NAME: this.outputBucket.bucketName
-            }
-        });
         // Import Competition Data Lambda Function
         this.importCompetitionDataFunction = new lambda.Function(this, 'ImportCompetitionDataFunction', {
             runtime: lambda.Runtime.PYTHON_3_12,
@@ -407,7 +389,6 @@ export class DivingAnalyticsBackendStack extends cdk.Stack {
                 TRAINING_DATA_TABLE_NAME: trainingDataTable.tableName
             }
         });
-        this.outputBucket.grantRead(this.getTrainingPhotoFunction);
 
         this.diversTable.grantReadData(this.getAllDiversFunction);
         this.diversTable.grantReadData(this.getDiverProfileFunction);

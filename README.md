@@ -1,7 +1,7 @@
 # Diving Analytics Platform
 
 | Index                                             | Description                                                             |
-| :------------------------------------------------ | :---------------------------------------------------------------------- |
+|:--------------------------------------------------|:------------------------------------------------------------------------|
 | [Overview](#overview)                             | See the motivation behind this project                                  |
 | [Description](#description)                       | Learn more about the problem, implemented solution and challenges faced |
 | [Deployment Guide](#deployment)                   | How to install and deploy **Diving Analytics Platform**                 |
@@ -30,7 +30,6 @@ progress, empowering coaches and athletes to focus more on performance improveme
 # Demo
 
 https://github.com/user-attachments/assets/4592d143-4b36-495c-99c6-f14bc29946cf
-
 
 # Description
 
@@ -63,6 +62,14 @@ using AWS CDK for reproducible infrastructure deployment.
 the analysis workflow to three steps: upload diving content, automatic AI processing, and review of insights. The
 platform integrates with Amazon Cognito for secure authentication and uses DynamoDB for scalable data storage with
 optimized querying patterns for diving analytics use cases.
+
+## Sample Training Scoresheet
+
+The platform processes training scoresheets like the one shown below. Coaches can upload images of these paper-based
+training logs, and the AI system automatically extracts diving performance data, and metrics for digital
+analysis.
+
+![Sample Training Scoresheet](media/sample-sheet.jpg)
 
 ## Architecture Diagram
 
@@ -155,9 +162,9 @@ The main dashboard provides:
 1. Navigate to "Divers" section
 2. Select a diver from the list
 3. View comprehensive profile including:
-   - Personal information
-   - Competition performance history, which can be filtered by dive code and boards
-   - Competition results
+    - Personal information
+    - Competition performance history, which can be filtered by dive code and boards
+    - Competition results
 
 ### View Diver Training Analysis
 
@@ -165,9 +172,9 @@ The main dashboard provides:
 2. Select a diver from the list
 3. Click on training tab
 4. View training data including:
-   - Number of training sessions
-   - Total Dives
-   - Average success rate
+    - Number of training sessions
+    - Total Dives
+    - Average success rate
 
 ## 6. Training Logs
 
@@ -243,11 +250,11 @@ Before deploying the Diving Analytics Platform, ensure you have the following in
 
    This script will:
 
-   - Check all prerequisites and detect the correct directory
-   - Prompt you for the team number with validation
-   - Show deployment confirmation with AWS account details
-   - Install dependencies and build automatically
-   - Deploy all stacks and provide detailed status updates
+    - Check all prerequisites and detect the correct directory
+    - Prompt you for the team number with validation
+    - Show deployment confirmation with AWS account details
+    - Install dependencies and build automatically
+    - Deploy all stacks and provide detailed status updates
 
    **Manual CDK Commands**
 
@@ -396,9 +403,9 @@ Starting diving data extraction for team number: <your_team_number>
 **Problem**: Script fails with "command not found" errors
 
 - **Solution**: Ensure prerequisites are installed:
-  - Node.js: `node --version`
-  - AWS CLI: `aws --version`
-  - CDK: `cdk --version`
+    - Node.js: `node --version`
+    - AWS CLI: `aws --version`
+    - CDK: `cdk --version`
 
 **Problem**: Script fails with AWS credential errors
 

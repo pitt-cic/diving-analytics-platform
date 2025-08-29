@@ -69,7 +69,7 @@ export class FrontendStack extends cdk.Stack {
             removalPolicy: cdk.RemovalPolicy.RETAIN,
         });
 
-        // Create User Pool Client for the web app
+
         const userPoolClient = new cognito.UserPoolClient(this, "DivingAnalyticsUserPoolClient", {
             userPool: userPool,
             userPoolClientName: "diving-analytics-web-client",
@@ -254,12 +254,6 @@ export class FrontendStack extends cdk.Stack {
             authorizationType: apigateway.AuthorizationType.COGNITO,
         });
 
-        const sessionResource = trainingResource.addResource("{sessionDate}");
-        const photoResource = sessionResource.addResource("photo");
-        photoResource.addMethod("GET", new apigateway.LambdaIntegration(props.backendStack.getTrainingPhotoFunction), {
-            authorizer: cognitoAuthorizer,
-            authorizationType: apigateway.AuthorizationType.COGNITO,
-        });
         const trainingDataResource = apiResource.addResource("training-data");
         trainingDataResource.addMethod("GET", new apigateway.LambdaIntegration(props.backendStack.getTrainingDataByStatusFunction), {
             authorizer: cognitoAuthorizer,
@@ -269,12 +263,11 @@ export class FrontendStack extends cdk.Stack {
             }
         });
 
-        // Add a PUT endpoint for updating training data
         trainingDataResource.addMethod("PUT", new apigateway.LambdaIntegration(props.backendStack.updateTrainingDataFunction), {
             authorizer: cognitoAuthorizer,
             authorizationType: apigateway.AuthorizationType.COGNITO,
         });
-        // Add DELETE endpoint for deleting training data by ID
+
         const trainingDataIdResource = trainingDataResource.addResource("{id}");
         trainingDataIdResource.addMethod("DELETE", new apigateway.LambdaIntegration(props.backendStack.deleteTrainingDataFunction), {
             authorizer: cognitoAuthorizer,
